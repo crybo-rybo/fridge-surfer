@@ -78,9 +78,9 @@ python -m fridgesurfer.debug_cli
 Inside the CLI:
 
 ```
-/scan                         → run only the VLM, see what it finds
-/ingredients "milk, eggs"     → test the chef directly, no VLM needed
-/recipe                       → full pipeline end-to-end
+/scan path/to/fridge.jpg      → run only the VLM, see what it finds
+/recipe path/to/fridge.jpg    → full pipeline end-to-end
+/ingredients "milk, eggs"     → test the chef directly, no image needed
 /last                         → see the most recent recipe from memory
 /feedback 1 5                 → rate recipe #1 with 5 stars
 ```

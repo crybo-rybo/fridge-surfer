@@ -1,49 +1,46 @@
 """Debug CLI — interactive REPL that replaces the Telegram bot for local testing.
 
 Usage:
-    python -m fridgesurfer.debug_cli [--image PATH]
+    python -m fridgesurfer.debug_cli
 
 Commands inside the REPL:
-    /recipe [PATH]            Full pipeline (VLM → chef → memory)
-    /scan [PATH]              VLM only — returns ingredient list
+    /recipe <PATH>            Full pipeline (VLM → chef → memory)
+    /scan <PATH>              VLM only — returns ingredient list
     /ingredients "a, b, c"   Chef only — bypasses VLM (fastest for chef testing)
     /last                     Show last recipe from memory
     /feedback <id> <rating>   Rate a recipe (1-5)
     /help                     Show this help
     /quit                     Exit
 
-PATH is an image file. Defaults to tests/fixtures/fridge_sample.jpg when omitted.
+/recipe and /scan require an image path. /ingredients, /last, and /feedback
+work without one.
 """
-import argparse
 import logging
-import sys
+import argparse
 from pathlib import Path
 
-from fridgesurfer import chef, config, memory, orchestrator, vision
-
-DEFAULT_FIXTURE = Path(__file__).parent.parent / "tests" / "fixtures" / "fridge_sample.jpg"
+from fridgesurfer import chef, config, memory, orchestrator
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s  %(name)s  %(message)s",
 )
-# Quieten third-party noise but keep our DEBUG messages available via -v
 logger = logging.getLogger("fridgesurfer")
 
 
-def _load_image(path: str | Path | None) -> bytes:
-    target = Path(path) if path else DEFAULT_FIXTURE
+def _load_image(path: str) -> bytes:
+    target = Path(path)
     if not target.exists():
         print(f"[error] Image not found: {target}")
-        print("  Run `python setup_fixtures.py` to generate the default fixture,")
-        print("  or supply a path: /recipe path/to/image.jpg")
         return b""
     return target.read_bytes()
 
 
 def _cmd_recipe(args: list[str]) -> None:
-    image_path = args[0] if args else None
-    image_bytes = _load_image(image_path)
+    if not args:
+        print("[error] /recipe requires an image path, e.g.: /recipe path/to/fridge.jpg")
+        return
+    image_bytes = _load_image(args[0])
     if not image_bytes:
         return
     print("[*] Running full pipeline...")
@@ -52,8 +49,10 @@ def _cmd_recipe(args: list[str]) -> None:
 
 
 def _cmd_scan(args: list[str]) -> None:
-    image_path = args[0] if args else None
-    image_bytes = _load_image(image_path)
+    if not args:
+        print("[error] /scan requires an image path, e.g.: /scan path/to/fridge.jpg")
+        return
+    image_bytes = _load_image(args[0])
     if not image_bytes:
         return
     print("[*] Running VLM scan...")
@@ -72,7 +71,6 @@ def _cmd_ingredients(args: list[str]) -> None:
         print("[error] Provide an ingredient list, e.g.: /ingredients \"milk, eggs, cheese\"")
         return
     raw = " ".join(args)
-    # Support both comma-separated and space-separated
     items = [i.strip() for i in raw.split(",") if i.strip()]
     if not items:
         items = raw.split()
@@ -109,7 +107,7 @@ def _cmd_feedback(args: list[str]) -> None:
     print(f"Saved rating {rating} for recipe #{recipe_id}.\n")
 
 
-def _print_help() -> None:
+def _print_help(_args: list[str] | None = None) -> None:
     print(__doc__)
 
 
@@ -119,18 +117,17 @@ _COMMANDS = {
     "/ingredients": _cmd_ingredients,
     "/last": _cmd_last,
     "/feedback": _cmd_feedback,
-    "/help": lambda _: _print_help(),
+    "/help": _print_help,
 }
 
 
-def run(default_image: str | None = None) -> None:
+def run() -> None:
     memory.init_db()
 
     print("Fridge Surfer debug CLI")
     print(f"  Vision model : {config.VISION_MODEL}")
     print(f"  Chef model   : {config.CHEF_MODEL}")
     print(f"  Ollama host  : {config.OLLAMA_HOST}")
-    print(f"  Default image: {default_image or DEFAULT_FIXTURE}")
     print("Type /help for available commands.\n")
 
     while True:
@@ -154,10 +151,6 @@ def run(default_image: str | None = None) -> None:
             print(f"Unknown command: {cmd!r}. Type /help for options.\n")
             continue
 
-        # If a default image was passed at CLI startup, use it when no per-command path is given.
-        if cmd in ("/recipe", "/scan") and not args and default_image:
-            args = [default_image]
-
         _COMMANDS[cmd](args)
 
 
@@ -165,11 +158,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Fridge Surfer interactive debug CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "--image",
-        metavar="PATH",
-        help="Default image to use when no path is supplied to /recipe or /scan",
     )
     parser.add_argument(
         "--debug",
@@ -181,7 +169,7 @@ def main() -> None:
     if ns.debug:
         logging.getLogger("fridgesurfer").setLevel(logging.DEBUG)
 
-    run(default_image=ns.image)
+    run()
 
 
 if __name__ == "__main__":
