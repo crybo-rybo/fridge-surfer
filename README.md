@@ -1,16 +1,16 @@
 # Fridge Surfer 🧲
 
-A tiny AI that lives near my fridge, stares at its contents, and tells me what to make for dinner.
+A tiny AI that lives near a fridge, stares at its contents, and figures out what to make for dinner.
 
 ---
 
 ## The Idea
 
-I keep opening the fridge, staring blankly, and closing it again. Classic.
+The refrigerator stare is a universal human experience. Door opens, eyes glaze over, door closes. Nothing was accomplished.
 
-Fridge Surfer is my attempt to outsource that problem to a local AI setup running on a **Jetson Orin Nano Super** tucked somewhere near the refrigerator. The idea is simple: it takes a photo of the fridge interior, figures out what's in there, and generates a dinner recipe using only what it sees. Then it texts me the recipe via Telegram like a little chef living in my kitchen wall.
+Fridge Surfer is a local AI appliance running on a **Jetson Orin Nano Super** tucked somewhere near the refrigerator. It takes a photo of the fridge interior, identifies what's in there, and generates a dinner recipe using only what it sees — delivered via Telegram like a tiny chef that lives in the kitchen wall.
 
-No cloud APIs. No subscriptions. No sending photos of my sad leftovers to some server farm. Everything runs locally.
+No cloud APIs. No subscriptions. No uploading photos of sad leftovers to a server farm. Everything runs locally.
 
 ## How It Works
 
@@ -23,11 +23,11 @@ The pipeline is pretty straightforward:
 1. A camera captures a still of the fridge interior.
 2. A vision-language model (VLM) looks at the image and produces a list of ingredients it can identify.
 3. A chat LLM plays the role of a practical home chef and generates a dinner recipe using those ingredients, deliberately avoiding whatever it suggested recently.
-4. The recipe lands in my Telegram DMs.
+4. The recipe lands in Telegram.
 
 There's also a SQLite memory layer that keeps track of past recipes so it doesn't suggest the same broccoli stir-fry three nights in a row.
 
-Both models run locally via **Ollama** — which means the whole thing works even if my internet goes out, and my fridge contents stay private.
+Both models run locally via **Ollama** — which means the whole thing works offline, and the fridge contents stay private.
 
 ## The Stack
 
@@ -87,6 +87,6 @@ Inside the CLI:
 
 ## Status
 
-This is a hobby project in active development. Currently standing up the core pipeline and testing model interactions before putting anything inside an actual fridge.
+Hobby project in active development. Currently standing up the core pipeline and testing model interactions before putting anything inside an actual fridge.
 
-v1 goal: camera fires → recipe lands in Telegram → I make dinner. That's it.
+v1 goal: camera fires → recipe lands in Telegram. That's it.
