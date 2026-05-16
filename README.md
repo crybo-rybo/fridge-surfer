@@ -62,16 +62,13 @@ The intended target is a Jetson, but the whole pipeline (minus the camera and Te
 # 1. Install deps
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
-# 2. Generate a synthetic fridge image for testing
-python setup_fixtures.py
-
-# 3. Pull the vision model
+# 2. Pull the vision model
 ollama pull moondream
 
-# 4. Copy config and fill in model names
+# 3. Copy config and fill in model names
 cp .env.example .env
 
-# 5. Launch the debug CLI
+# 4. Launch the debug CLI
 python -m fridgesurfer.debug_cli
 ```
 

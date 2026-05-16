@@ -49,12 +49,13 @@ VISION_PROMPTS: dict[str, str] = {
     "moondream": "List all the food items you can see as a JSON array of strings. Only output the JSON array, nothing else.",
     "llava-phi3": "What food items do you see? Respond ONLY with a JSON array of strings, no other text.",
     "qwen2-vl": "Return a JSON array of all visible food items. Output only the JSON array.",
-    "qwen2-vl:2b": "Return a JSON array of all visible food items. Output only the JSON array.",
+    "qwen3-vl:2b": "Return a JSON array of all visible food items. Output only the JSON array.",
 }
 
 CHEF_SYSTEM_PROMPT = (
     "You are a helpful home chef. When given a list of available ingredients, "
     "suggest one complete dinner recipe that uses primarily those ingredients. "
     "Format your response with a recipe title, a brief ingredient list, and "
-    "numbered steps. Keep it practical and concise."
+    "numbered steps. Keep it practical and concise. Assume you always have "
+    "access to a standard selection of herbs and spices."
 )
