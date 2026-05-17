@@ -1,4 +1,4 @@
-# Fridge Surfer 🧲
+# Fridge Surfer
 
 A tiny AI that lives near a fridge, stares at its contents, and figures out what to make for dinner.
 
@@ -17,7 +17,7 @@ No cloud APIs. No subscriptions. No uploading photos of sad leftovers to a serve
 The pipeline is pretty straightforward:
 
 ```
-📸 Camera → 🔍 VLM (vision model) → 🍳 Chef LLM → 💬 Telegram
+Camera -> VLM (vision model) -> Chef LLM -> Telegram
 ```
 
 1. A camera captures a still of the fridge interior.
@@ -35,8 +35,8 @@ Both models run locally via **Ollama** — which means the whole thing works off
 |---|---|
 | Jetson Orin Nano Super | Runs everything — compute, camera, models |
 | Ollama | Local model server (wraps llama.cpp) |
-| Moondream2 | The VLM — looks at the fridge photo, names what it sees |
-| Phi-3 mini / qwen3 | The chef — turns ingredient lists into recipes |
+| Qwen3-VL 2B | The VLM — looks at the fridge photo, names what it sees |
+| Ministral 3B | The chef — turns ingredient lists into recipes |
 | python-telegram-bot | Two-way Telegram interaction |
 | SQLite | Keeps recipe history |
 
@@ -59,18 +59,27 @@ fridgesurfer/
 The intended target is a Jetson, but the whole pipeline (minus the camera and Telegram) can be exercised locally:
 
 ```bash
-# 1. Install deps
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# 1. Create the virtual environment
+python3 -m venv .venv
 
-# 2. Pull the vision model
-ollama pull moondream
+# 2. Activate it (run this every new shell session)
+source .venv/bin/activate
 
-# 3. Copy config and fill in model names
+# 3. Install deps
+pip install -r requirements.txt
+
+# 4. Pull the models (Ollama must already be installed and running)
+ollama pull qwen3-vl:2b
+ollama pull ministral-3:3b
+
+# 5. Copy config and fill in model names
 cp .env.example .env
 
-# 4. Launch the debug CLI
+# 6. Launch the debug CLI
 python -m fridgesurfer.debug_cli
 ```
+
+For production deployment to a Jetson Orin Nano Super, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 Inside the CLI:
 
