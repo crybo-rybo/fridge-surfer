@@ -29,7 +29,7 @@ You will also need, on your laptop:
 
 ### 2.1 Flash JetPack 6.x
 
-Use NVIDIA's [SDK Manager](https://developer.nvidia.com/sdk-manager) or write the official JetPack image directly to the SD card. Boot the Jetson with monitor + keyboard attached and complete the Ubuntu first-run wizard. Create your admin user (we'll call it `conor` below — substitute your own).
+Use NVIDIA's [SDK Manager](https://developer.nvidia.com/sdk-manager) or write the official JetPack image directly to the SD card. Boot the Jetson with monitor + keyboard attached and complete the Ubuntu first-run wizard. Create your admin user (we'll call it `fridge` below — substitute your own).
 
 ### 2.2 System updates
 
@@ -48,7 +48,7 @@ Reserve an IP for the Jetson on your router so `ssh fridgesurfer.local` (or `ssh
 Copy your public key to the Jetson while passwords are still enabled:
 
 ```bash
-ssh-copy-id conor@<jetson-ip>
+ssh-copy-id fridge@<jetson-ip>
 ```
 
 Verify key-only login works before disabling passwords in §6.2.
@@ -211,7 +211,7 @@ Edit `/etc/ssh/sshd_config`:
 PasswordAuthentication no
 PermitRootLogin no
 PubkeyAuthentication yes
-AllowUsers conor
+AllowUsers fridge
 ```
 
 Then:
