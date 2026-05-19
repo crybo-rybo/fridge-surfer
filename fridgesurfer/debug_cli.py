@@ -230,6 +230,8 @@ def run() -> None:
     print(f"  Chef model   : {config.CHEF_MODEL}")
     print(f"  Ollama host  : {config.OLLAMA_HOST}")
     print(f"  Keep alive   : {config.OLLAMA_KEEP_ALIVE}")
+    print(f"  VLM context  : {config.VISION_NUM_CTX}")
+    print(f"  Chef context : {config.CHEF_NUM_CTX}")
     print("Type /help for available commands.\n")
 
     while True:

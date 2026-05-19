@@ -117,6 +117,9 @@ def generate_recipe(
         "stream": stream_callback is not None,
         "think": False,
         "keep_alive": config.OLLAMA_KEEP_ALIVE,
+        "options": {
+            "num_ctx": config.CHEF_NUM_CTX,
+        },
     }
 
     logger.debug("Chef prompt user content: %r", user_content)

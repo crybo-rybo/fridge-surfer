@@ -12,6 +12,16 @@ def _require(name: str) -> str:
     return val
 
 
+def _optional_int(name: str, default: int) -> int:
+    val = os.getenv(name)
+    if not val:
+        return default
+    try:
+        return int(val)
+    except ValueError:
+        sys.exit(f"[config] {name} must be an integer, got: {val!r}")
+
+
 def _require_for_telegram(name: str) -> str:
     """Returns the value or raises — only called from bot.py, not debug_cli.py."""
     val = os.getenv(name)
@@ -22,6 +32,8 @@ def _require_for_telegram(name: str) -> str:
 
 OLLAMA_HOST = _require("OLLAMA_HOST")
 OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
+VISION_NUM_CTX = _optional_int("VISION_NUM_CTX", 2048)
+CHEF_NUM_CTX = _optional_int("CHEF_NUM_CTX", 2048)
 VISION_MODEL = _require("VISION_MODEL")
 CHEF_MODEL = _require("CHEF_MODEL")
 DB_PATH = _require("DB_PATH")
