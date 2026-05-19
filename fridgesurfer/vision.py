@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import re
+from collections.abc import Callable
 
 import requests
 
@@ -10,6 +11,7 @@ from fridgesurfer import config
 logger = logging.getLogger(__name__)
 
 _FALLBACK_PROMPT = "List all food items visible as a JSON array of strings."
+StreamCallback = Callable[[str, str], None]
 
 
 def _prompt_for(model: str) -> str:
@@ -56,9 +58,75 @@ def _parse(raw: str) -> list[str]:
     return items
 
 
+def _format_stats(chunk: dict) -> str:
+    parts = []
+    for key, label in (
+        ("load_duration", "load"),
+        ("prompt_eval_duration", "prompt_eval"),
+        ("eval_duration", "eval"),
+        ("total_duration", "total"),
+    ):
+        value = chunk.get(key)
+        if isinstance(value, int):
+            parts.append(f"{label}={value / 1_000_000_000:.2f}s")
+
+    for key, label in (
+        ("prompt_eval_count", "prompt_tokens"),
+        ("eval_count", "output_tokens"),
+    ):
+        value = chunk.get(key)
+        if isinstance(value, int):
+            parts.append(f"{label}={value}")
+
+    return ", ".join(parts)
+
+
+def _stream_generate(payload: dict, callback: StreamCallback) -> str:
+    raw_parts: list[str] = []
+
+    with requests.post(
+        f"{config.OLLAMA_HOST}/api/generate",
+        json=payload,
+        timeout=120,
+        stream=True,
+    ) as resp:
+        resp.raise_for_status()
+
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line:
+                continue
+
+            try:
+                chunk = json.loads(line)
+            except json.JSONDecodeError:
+                logger.debug("Ignoring unparseable Ollama stream line: %r", line)
+                continue
+
+            if error := chunk.get("error"):
+                raise RuntimeError(str(error))
+
+            thinking = chunk.get("thinking")
+            if thinking:
+                callback("thinking", str(thinking))
+
+            response = chunk.get("response")
+            if response:
+                text = str(response)
+                raw_parts.append(text)
+                callback("response", text)
+
+            if chunk.get("done"):
+                stats = _format_stats(chunk)
+                if stats:
+                    callback("stats", stats)
+
+    return "".join(raw_parts)
+
+
 def extract_ingredients(
     image_bytes: bytes,
     model: str | None = None,
+    stream_callback: StreamCallback | None = None,
 ) -> list[str]:
     """Call the Ollama VLM and return a clean list of ingredient strings.
 
@@ -73,17 +141,22 @@ def extract_ingredients(
         "model": model,
         "prompt": prompt,
         "images": [image_b64],
-        "stream": False,
+        "stream": stream_callback is not None,
+        "think": False,
+        "keep_alive": config.OLLAMA_KEEP_ALIVE,
     }
 
     try:
-        resp = requests.post(
-            f"{config.OLLAMA_HOST}/api/generate",
-            json=payload,
-            timeout=120,
-        )
-        resp.raise_for_status()
-        raw = resp.json().get("response", "")
+        if stream_callback is None:
+            resp = requests.post(
+                f"{config.OLLAMA_HOST}/api/generate",
+                json=payload,
+                timeout=120,
+            )
+            resp.raise_for_status()
+            raw = resp.json().get("response", "")
+        else:
+            raw = _stream_generate(payload, stream_callback)
     except Exception:
         logger.exception("VLM call failed (model=%r)", model)
         return []

@@ -13,19 +13,69 @@ Commands inside the REPL:
     /quit                     Exit
 
 /recipe and /scan require an image path. /ingredients, /last, and /feedback
-work without one.
+work without one. Model calls stream raw Ollama output so you can inspect
+thinking/content chunks and timing while testing.
 """
 import logging
 import argparse
 from pathlib import Path
 
-from fridgesurfer import chef, config, memory, orchestrator
+from fridgesurfer import chef, config, memory, orchestrator, vision
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s  %(name)s  %(message)s",
 )
 logger = logging.getLogger("fridgesurfer")
+
+
+class _OllamaStreamPrinter:
+    def __init__(self, label: str) -> None:
+        self.label = label
+        self.current_kind: str | None = None
+        self.saw_any = False
+        self.saw_response = False
+        self.saw_thinking = False
+
+    def begin(self) -> None:
+        print(f"--- {self.label} Ollama stream ---", flush=True)
+
+    def __call__(self, kind: str, text: str) -> None:
+        if not text:
+            return
+
+        if kind == "stats":
+            if self.current_kind is not None:
+                print()
+                self.current_kind = None
+            print(f"[{self.label} stats] {text}", flush=True)
+            return
+
+        self.saw_any = True
+        if kind == "response":
+            self.saw_response = True
+        elif kind == "thinking":
+            self.saw_thinking = True
+        else:
+            kind = "raw"
+
+        if self.current_kind != kind:
+            if self.current_kind is not None:
+                print()
+            print(f"[{self.label} {kind}]", flush=True)
+            self.current_kind = kind
+
+        print(text, end="", flush=True)
+
+    def finish(self) -> None:
+        if self.current_kind is not None:
+            print()
+
+        if not self.saw_any:
+            print(f"[{self.label}] no streamed response chunks received")
+        if not self.saw_thinking:
+            print(f"[{self.label}] no thinking chunks received")
+        print(f"--- end {self.label} stream ---\n")
 
 
 def _load_image(path: str) -> bytes:
@@ -44,8 +94,43 @@ def _cmd_recipe(args: list[str]) -> None:
     if not image_bytes:
         return
     print("[*] Running full pipeline...")
-    result = orchestrator.run(image_bytes=image_bytes)
-    print("\n" + result + "\n")
+    vlm_stream = _OllamaStreamPrinter("VLM")
+    vlm_stream.begin()
+    ingredients = vision.extract_ingredients(
+        image_bytes,
+        stream_callback=vlm_stream,
+    )
+    vlm_stream.finish()
+
+    if not ingredients:
+        print("The fridge looks empty (or the VLM output could not be parsed).\n")
+        return
+
+    print("Ingredients detected:")
+    for item in ingredients:
+        print(f"  • {item}")
+    print()
+
+    recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
+    print(f"[*] Calling chef with {len(ingredients)} ingredient(s), {len(recent)} recent recipe(s)...")
+    chef_stream = _OllamaStreamPrinter("Chef")
+    chef_stream.begin()
+    try:
+        recipe = chef.generate_recipe(
+            ingredients,
+            recent,
+            stream_callback=chef_stream,
+        )
+    except Exception as exc:
+        chef_stream.finish()
+        print(f"[error] Chef failed: {exc}")
+        return
+
+    recipe_id = memory.save_recipe(ingredients, recipe)
+    chef_stream.finish()
+    if not chef_stream.saw_response:
+        print("\n" + recipe + "\n")
+    print(f"Saved recipe #{recipe_id}.\n")
 
 
 def _cmd_scan(args: list[str]) -> None:
@@ -56,7 +141,13 @@ def _cmd_scan(args: list[str]) -> None:
     if not image_bytes:
         return
     print("[*] Running VLM scan...")
-    ingredients = orchestrator.scan(image_bytes=image_bytes)
+    vlm_stream = _OllamaStreamPrinter("VLM")
+    vlm_stream.begin()
+    ingredients = orchestrator.scan(
+        image_bytes=image_bytes,
+        vision_stream_callback=vlm_stream,
+    )
+    vlm_stream.finish()
     if ingredients:
         print("Ingredients detected:")
         for item in ingredients:
@@ -77,13 +168,23 @@ def _cmd_ingredients(args: list[str]) -> None:
 
     recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
     print(f"[*] Calling chef with {len(items)} ingredient(s), {len(recent)} recent recipe(s)...")
+    chef_stream = _OllamaStreamPrinter("Chef")
+    chef_stream.begin()
     try:
-        recipe = chef.generate_recipe(items, recent)
+        recipe = chef.generate_recipe(
+            items,
+            recent,
+            stream_callback=chef_stream,
+        )
     except Exception as exc:
+        chef_stream.finish()
         print(f"[error] Chef failed: {exc}")
         return
-    memory.save_recipe(items, recipe)
-    print("\n" + recipe + "\n")
+    recipe_id = memory.save_recipe(items, recipe)
+    chef_stream.finish()
+    if not chef_stream.saw_response:
+        print("\n" + recipe + "\n")
+    print(f"Saved recipe #{recipe_id}.\n")
 
 
 def _cmd_last(_args: list[str]) -> None:
@@ -128,6 +229,7 @@ def run() -> None:
     print(f"  Vision model : {config.VISION_MODEL}")
     print(f"  Chef model   : {config.CHEF_MODEL}")
     print(f"  Ollama host  : {config.OLLAMA_HOST}")
+    print(f"  Keep alive   : {config.OLLAMA_KEEP_ALIVE}")
     print("Type /help for available commands.\n")
 
     while True:

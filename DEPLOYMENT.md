@@ -147,6 +147,7 @@ Fill in the required values:
 | Variable | Notes |
 |---|---|
 | `OLLAMA_HOST` | Leave at `http://localhost:11434`. |
+| `OLLAMA_KEEP_ALIVE` | `30m` keeps models warm during normal use; use `-1` only if both models fit comfortably and you want them pinned. |
 | `VISION_MODEL` | `qwen3-vl:2b` |
 | `CHEF_MODEL` | `ministral-3:3b` |
 | `DB_PATH` | `/home/fridgesurfer/fridgesurfer/fridgesurfer.db` (absolute path is safer under systemd). |
