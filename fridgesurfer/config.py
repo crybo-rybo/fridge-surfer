@@ -21,6 +21,7 @@ def _require_for_telegram(name: str) -> str:
 
 
 OLLAMA_HOST = _require("OLLAMA_HOST")
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
 VISION_MODEL = _require("VISION_MODEL")
 CHEF_MODEL = _require("CHEF_MODEL")
 DB_PATH = _require("DB_PATH")

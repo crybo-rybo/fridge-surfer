@@ -1,9 +1,11 @@
 import logging
+from collections.abc import Callable
 
 from fridgesurfer import config, memory, vision, chef
 from fridgesurfer.camera import CameraUnavailableError
 
 logger = logging.getLogger(__name__)
+StreamCallback = Callable[[str, str], None]
 
 _MSG_CAMERA_FAIL = (
     "Sorry, I couldn't access the camera right now. Please try again later."
@@ -18,7 +20,11 @@ _MSG_OLLAMA_DOWN = (
 )
 
 
-def run(image_bytes: bytes | None = None) -> str:
+def run(
+    image_bytes: bytes | None = None,
+    vision_stream_callback: StreamCallback | None = None,
+    chef_stream_callback: StreamCallback | None = None,
+) -> str:
     """Run the full pipeline and return a recipe string.
 
     If image_bytes is None, attempts to capture from the hardware camera.
@@ -36,7 +42,10 @@ def run(image_bytes: bytes | None = None) -> str:
 
     # ── Step 2: extract ingredients via VLM ───────────────────────────────────
     try:
-        ingredients = vision.extract_ingredients(image_bytes)
+        ingredients = vision.extract_ingredients(
+            image_bytes,
+            stream_callback=vision_stream_callback,
+        )
     except Exception:
         logger.exception("Vision module failed unexpectedly")
         return _MSG_OLLAMA_DOWN
@@ -49,7 +58,11 @@ def run(image_bytes: bytes | None = None) -> str:
 
     # ── Step 4: generate recipe ───────────────────────────────────────────────
     try:
-        recipe = chef.generate_recipe(ingredients, recent)
+        recipe = chef.generate_recipe(
+            ingredients,
+            recent,
+            stream_callback=chef_stream_callback,
+        )
     except Exception:
         logger.exception("Chef module failed unexpectedly")
         return _MSG_OLLAMA_DOWN
@@ -60,7 +73,10 @@ def run(image_bytes: bytes | None = None) -> str:
     return recipe
 
 
-def scan(image_bytes: bytes | None = None) -> list[str]:
+def scan(
+    image_bytes: bytes | None = None,
+    vision_stream_callback: StreamCallback | None = None,
+) -> list[str]:
     """Run only the VLM step and return the ingredient list.
 
     Used by /scan command (debug or Telegram) to inspect VLM output without
@@ -75,7 +91,10 @@ def scan(image_bytes: bytes | None = None) -> list[str]:
             return []
 
     try:
-        return vision.extract_ingredients(image_bytes)
+        return vision.extract_ingredients(
+            image_bytes,
+            stream_callback=vision_stream_callback,
+        )
     except Exception:
         logger.exception("Vision module failed during scan")
         return []
