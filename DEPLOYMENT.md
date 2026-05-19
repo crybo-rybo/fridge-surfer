@@ -148,6 +148,8 @@ Fill in the required values:
 |---|---|
 | `OLLAMA_HOST` | Leave at `http://localhost:11434`. |
 | `OLLAMA_KEEP_ALIVE` | `30m` keeps models warm during normal use; use `-1` only if both models fit comfortably and you want them pinned. |
+| `VISION_NUM_CTX` | `2048` keeps the VLM context modest while leaving room for image tokens. |
+| `CHEF_NUM_CTX` | `2048` is enough for ingredient lists, recent recipe summaries, and one concise recipe. |
 | `VISION_MODEL` | `qwen3-vl:2b` |
 | `CHEF_MODEL` | `ministral-3:3b` |
 | `DB_PATH` | `/home/fridgesurfer/fridgesurfer/fridgesurfer.db` (absolute path is safer under systemd). |
@@ -373,7 +375,7 @@ sudo journalctl -u fridgesurfer -n 200 --no-pager
 | `/recipe` returns "couldn't access the camera" | Camera device missing, permission, or wrong index. | `ls /dev/video*`, `groups fridgesurfer`, retest with the snippet in §5.4. |
 | First `/recipe` is very slow, second is fast | Cold model load — expected. | Tune `OLLAMA_KEEP_ALIVE` in Ollama's systemd override if you want models to stay resident longer. |
 | Bot replies to messages from wrong chat | `TELEGRAM_ALLOWED_CHAT_ID` set wrong (e.g. negative ID for a group not pasted with sign). | Fix in `.env`, restart. |
-| Memory pressure with both models loaded | 8GB unified memory is tight. | Lower `OLLAMA_KEEP_ALIVE` so models swap on demand; latency cost is acceptable for once-a-day usage. |
+| Memory pressure with both models loaded | 8GB unified memory is tight. | Lower `VISION_NUM_CTX` / `CHEF_NUM_CTX` first. If still tight, lower `OLLAMA_KEEP_ALIVE` so models swap on demand. |
 
 ---
 

@@ -144,6 +144,9 @@ def extract_ingredients(
         "stream": stream_callback is not None,
         "think": False,
         "keep_alive": config.OLLAMA_KEEP_ALIVE,
+        "options": {
+            "num_ctx": config.VISION_NUM_CTX,
+        },
     }
 
     try:
