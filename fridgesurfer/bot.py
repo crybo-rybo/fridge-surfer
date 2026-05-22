@@ -24,6 +24,14 @@ _TEST_IMAGE_PATH = (
     / "fixtures"
     / "ingredients_chicken_caprese.png"
 )
+_HELP_TEXT = """Fridge Surfer commands:
+
+/help - Show this command list.
+/recipe - Scan the fridge camera and generate a recipe.
+/test - Run the full pipeline with a bundled fixture image.
+/scan - Scan the fridge camera and list detected ingredients.
+/last - Show the most recent saved recipe.
+/feedback <recipe_id> <rating 1-5> - Rate a saved recipe."""
 
 
 def _is_allowed(update: Update) -> bool:
@@ -43,6 +51,12 @@ async def cmd_recipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text("Scanning the fridge and generating a recipe, please wait...")
     recipe = orchestrator.run()
     await update.message.reply_text(recipe)
+
+
+async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+    await update.message.reply_text(_HELP_TEXT)
 
 
 async def cmd_test(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -120,6 +134,7 @@ def main() -> None:
     app = Application.builder().token(tg["bot_token"]).build()
 
     app.add_handler(CommandHandler("recipe", cmd_recipe))
+    app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("test", cmd_test))
     app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CommandHandler("last", cmd_last))
@@ -135,7 +150,7 @@ def main() -> None:
     async def on_startup(app: Application) -> None:
         await app.bot.send_message(
             chat_id=tg["allowed_chat_id"],
-            text="Fridge Surfer is online. Send /recipe for a recommendation or /test for a fixture run.",
+            text="Fridge Surfer is online. Send /help for available commands.",
         )
 
     app.post_init = on_startup
