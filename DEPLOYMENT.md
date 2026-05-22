@@ -312,17 +312,18 @@ Walk through each of these before declaring the deployment done. Each one corres
 | # | Check | How |
 |---|---|---|
 | 1 | Bot is running as the service user | `systemctl status fridgesurfer` shows `Active: active` and `User=fridgesurfer`. |
-| 2 | `/recipe` works on demand | Send `/recipe` from your Telegram client; recipe arrives within ~60 s. |
-| 3 | `/scan` returns an ingredient list | Send `/scan`; reply is a clean bulleted list. |
-| 4 | Scheduled run fires | Set `SCHEDULED_SCAN_TIME` to two minutes from now, restart the service, wait. |
-| 5 | Bot ignores other chats | Message the bot from a different Telegram account; no response. |
-| 6 | Reboot survival | `sudo reboot`; after boot, the bot reconnects and sends its startup message. |
-| 7 | Firewall posture | `sudo ufw status verbose` shows default-deny inbound and LAN-only SSH. |
-| 8 | Ollama is local-only | `sudo ss -tlnp \| grep 11434` shows `127.0.0.1:11434`, not `0.0.0.0`. |
-| 9 | No password SSH | `grep -E '^(PasswordAuthentication\|PermitRootLogin)' /etc/ssh/sshd_config` returns `no` on both. |
-| 10 | Unattended upgrades active | `sudo systemctl status unattended-upgrades` is active. |
+| 2 | `/test` works with a fixture | Send `/test` from your Telegram client; recipe arrives without touching the camera. |
+| 3 | `/recipe` works on demand | Send `/recipe` from your Telegram client; recipe arrives within ~60 s. |
+| 4 | `/scan` returns an ingredient list | Send `/scan`; reply is a clean bulleted list. |
+| 5 | Scheduled run fires | Set `SCHEDULED_SCAN_TIME` to two minutes from now, restart the service, wait. |
+| 6 | Bot ignores other chats | Message the bot from a different Telegram account; no response. |
+| 7 | Reboot survival | `sudo reboot`; after boot, the bot reconnects and sends its startup message. |
+| 8 | Firewall posture | `sudo ufw status verbose` shows default-deny inbound and LAN-only SSH. |
+| 9 | Ollama is local-only | `sudo ss -tlnp \| grep 11434` shows `127.0.0.1:11434`, not `0.0.0.0`. |
+| 10 | No password SSH | `grep -E '^(PasswordAuthentication\|PermitRootLogin)' /etc/ssh/sshd_config` returns `no` on both. |
+| 11 | Unattended upgrades active | `sudo systemctl status unattended-upgrades` is active. |
 
-Hit all ten and Fridge Surfer is shipped.
+Hit all eleven and Fridge Surfer is shipped.
 
 ---
 

@@ -5,6 +5,7 @@ Not needed for local testing — use debug_cli.py instead.
 """
 import logging
 from datetime import time
+from pathlib import Path
 
 from telegram import Update
 from telegram.ext import (
@@ -17,6 +18,12 @@ from telegram.ext import (
 from fridgesurfer import config, memory, orchestrator, vision
 
 logger = logging.getLogger(__name__)
+_TEST_IMAGE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "tests"
+    / "fixtures"
+    / "ingredients_chicken_caprese.png"
+)
 
 
 def _is_allowed(update: Update) -> bool:
@@ -35,6 +42,25 @@ async def cmd_recipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         return
     await update.message.reply_text("Scanning the fridge and generating a recipe, please wait...")
     recipe = orchestrator.run()
+    await update.message.reply_text(recipe)
+
+
+async def cmd_test(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+    if not _TEST_IMAGE_PATH.exists():
+        await update.message.reply_text(f"Test fixture not found: {_TEST_IMAGE_PATH}")
+        return
+    await update.message.reply_text(
+        f"Running full pipeline with test fixture: {_TEST_IMAGE_PATH.name}"
+    )
+    try:
+        image_bytes = _TEST_IMAGE_PATH.read_bytes()
+    except OSError:
+        logger.exception("Failed to read test fixture: %s", _TEST_IMAGE_PATH)
+        await update.message.reply_text("Sorry, I couldn't read the test fixture.")
+        return
+    recipe = orchestrator.run(image_bytes=image_bytes)
     await update.message.reply_text(recipe)
 
 
@@ -94,6 +120,7 @@ def main() -> None:
     app = Application.builder().token(tg["bot_token"]).build()
 
     app.add_handler(CommandHandler("recipe", cmd_recipe))
+    app.add_handler(CommandHandler("test", cmd_test))
     app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CommandHandler("last", cmd_last))
     app.add_handler(CommandHandler("feedback", cmd_feedback))
@@ -108,7 +135,7 @@ def main() -> None:
     async def on_startup(app: Application) -> None:
         await app.bot.send_message(
             chat_id=tg["allowed_chat_id"],
-            text="Fridge Surfer is online. Send /recipe for a recommendation.",
+            text="Fridge Surfer is online. Send /recipe for a recommendation or /test for a fixture run.",
         )
 
     app.post_init = on_startup
