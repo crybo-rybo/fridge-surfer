@@ -18,6 +18,11 @@ from telegram.ext import (
 from fridgesurfer import config, memory, orchestrator, vision
 
 logger = logging.getLogger(__name__)
+_THIRD_PARTY_LOGGERS = (
+    "apscheduler",
+    "httpx",
+    "telegram",
+)
 _TEST_IMAGE_PATH = (
     Path(__file__).resolve().parents[1]
     / "tests"
@@ -161,4 +166,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    for logger_name in _THIRD_PARTY_LOGGERS:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
     main()
