@@ -20,10 +20,12 @@ The pipeline is pretty straightforward:
 Camera -> VLM (vision model) -> Chef LLM -> Telegram
 ```
 
-1. A camera captures a still of the fridge interior.
+1. A camera captures a still of the fridge interior (or you send a photo via Telegram).
 2. A vision-language model (VLM) looks at the image and produces a list of ingredients it can identify.
 3. A chat LLM plays the role of a practical home chef and generates a dinner recipe using those ingredients, deliberately avoiding whatever it suggested recently.
 4. The recipe lands in Telegram.
+
+You can also send a fridge photo directly in Telegram — caption it `/recipe` for a full recipe or `/scan` for ingredients only. The image is downloaded to the Jetson and processed locally by Ollama; text commands `/recipe` and `/scan` still use the mounted camera when no photo is attached.
 
 There's also a SQLite memory layer that keeps track of past recipes so it doesn't suggest the same broccoli stir-fry three nights in a row.
 
@@ -90,6 +92,17 @@ Inside the CLI:
 /last                         → see the most recent recipe from memory
 /feedback 1 5                 → rate recipe #1 with 5 stars
 ```
+
+### Telegram photo input
+
+When the bot is running, you can send a fridge photo from your phone:
+
+```
+Photo captioned /recipe   → full pipeline using that image
+Photo captioned /scan     → VLM only, returns ingredient list
+```
+
+Uncaptioned photos are ignored. This is useful for testing without a mounted camera or when you're away from the Jetson.
 
 ## Status
 

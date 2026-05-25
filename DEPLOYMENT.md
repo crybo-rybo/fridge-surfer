@@ -301,7 +301,9 @@ Watch logs:
 sudo journalctl -u fridgesurfer -f
 ```
 
-A successful start ends with `Fridge Surfer is online. Send /recipe for a recommendation.` arriving in your Telegram chat.
+A successful start ends with `Fridge Surfer is online. Send /help for available commands.` arriving in your Telegram chat.
+
+You can also send a fridge photo captioned `/recipe` or `/scan` to run the pipeline from your phone instead of the mounted camera.
 
 ---
 
@@ -316,6 +318,8 @@ Walk through each of these before declaring the deployment done. Each one corres
 | 3 | `/test` works with a fixture | Send `/test` from your Telegram client; recipe arrives without touching the camera. |
 | 4 | `/recipe` works on demand | Send `/recipe` from your Telegram client; recipe arrives within ~60 s. |
 | 5 | `/scan` returns an ingredient list | Send `/scan`; reply is a clean bulleted list. |
+| 5b | Photo captioned `/recipe` works | Send a fridge photo with caption `/recipe`; recipe arrives without using the camera. |
+| 5c | Photo captioned `/scan` works | Send a fridge photo with caption `/scan`; ingredient list arrives. |
 | 6 | Scheduled run fires | Set `SCHEDULED_SCAN_TIME` to two minutes from now, restart the service, wait. |
 | 7 | Bot ignores other chats | Message the bot from a different Telegram account; no response. |
 | 8 | Reboot survival | `sudo reboot`; after boot, the bot reconnects and sends its startup message. |
