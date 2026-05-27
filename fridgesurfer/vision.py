@@ -7,6 +7,7 @@ from collections.abc import Callable
 import requests
 
 from fridgesurfer import config
+from fridgesurfer.ollama_client import raise_for_ollama_status
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def _stream_generate(payload: dict, callback: StreamCallback) -> str:
         timeout=120,
         stream=True,
     ) as resp:
-        resp.raise_for_status()
+        raise_for_ollama_status(resp, model=payload["model"], endpoint="/api/generate")
 
         for line in resp.iter_lines(decode_unicode=True):
             if not line:
@@ -143,7 +144,8 @@ def extract_ingredients(
         "images": [image_b64],
         "stream": stream_callback is not None,
         "think": False,
-        "keep_alive": config.OLLAMA_KEEP_ALIVE,
+        # Unload immediately so the chef model can load on memory-constrained devices.
+        "keep_alive": 0,
         "options": {
             "num_ctx": config.VISION_NUM_CTX,
         },
@@ -156,7 +158,7 @@ def extract_ingredients(
                 json=payload,
                 timeout=120,
             )
-            resp.raise_for_status()
+            raise_for_ollama_status(resp, model=payload["model"], endpoint="/api/generate")
             raw = resp.json().get("response", "")
         else:
             raw = _stream_generate(payload, stream_callback)

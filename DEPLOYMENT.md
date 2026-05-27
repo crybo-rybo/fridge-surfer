@@ -71,6 +71,14 @@ sudo ss -tlnp | grep 11434   # should show 127.0.0.1:11434
 ollama --version
 ```
 
+Verify Ollama is **0.13.1 or newer** — `ministral-3:3b` requires it:
+
+```bash
+ollama --version   # must be >= 0.13.1
+```
+
+If you're on an older build, re-run the install script from §3 or upgrade via your package manager, then restart Ollama.
+
 ### 3.1 Pull the models
 
 ```bash
@@ -147,7 +155,7 @@ Fill in the required values:
 | Variable | Notes |
 |---|---|
 | `OLLAMA_HOST` | Leave at `http://localhost:11434`. |
-| `OLLAMA_KEEP_ALIVE` | `30m` keeps models warm during normal use; use `-1` only if both models fit comfortably and you want them pinned. |
+| `OLLAMA_KEEP_ALIVE` | `30m` keeps the **chef** model warm between requests. Vision always unloads immediately after each call to leave room for the chef model on 8 GB devices. |
 | `VISION_NUM_CTX` | `2048` keeps the VLM context modest while leaving room for image tokens. |
 | `CHEF_NUM_CTX` | `2048` is enough for ingredient lists, recent recipe summaries, and one concise recipe. |
 | `VISION_MODEL` | `qwen3-vl:2b` |
@@ -377,7 +385,8 @@ sudo journalctl -u fridgesurfer -n 200 --no-pager
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Bot never sends startup message | Wrong token or chat ID. | Re-check `.env`, restart service, watch `journalctl`. |
-| `/recipe` returns "AI models appear to be unavailable" | Ollama not running, or model not pulled. | `sudo systemctl status ollama`, `ollama list`. |
+| `/recipe` or `/test` returns "AI models appear to be unavailable" | Ollama not running, model not pulled, outdated Ollama (< 0.13.1 for ministral), or OOM. | `sudo systemctl status ollama`, `ollama list`, `ollama --version`. If logs show vision succeeded but **Chef module failed** with HTTP 500, test the chef model directly: `curl -s http://localhost:11434/api/chat -d '{"model":"ministral-3:3b","messages":[{"role":"user","content":"hello"}],"stream":false}'`. Check `sudo journalctl -u ollama -n 50` for OOM or template errors. Pull/deploy the latest code so vision unloads before chef runs. |
+| Chef fails with HTTP 500 but vision works | Vision model still resident + chef load exceeds RAM, or stale ministral blob. | `ollama stop $(ollama ps -q)` then retest chef. `ollama pull ministral-3:3b`. Lower `CHEF_NUM_CTX` if still tight. |
 | `/recipe` returns "couldn't access the camera" | Camera device missing, permission, or wrong index. | `ls /dev/video*`, `groups fridgesurfer`, retest with the snippet in §5.4. |
 | First `/recipe` is very slow, second is fast | Cold model load — expected. | Tune `OLLAMA_KEEP_ALIVE` in Ollama's systemd override if you want models to stay resident longer. |
 | Bot replies to messages from wrong chat | `TELEGRAM_ALLOWED_CHAT_ID` set wrong (e.g. negative ID for a group not pasted with sign). | Fix in `.env`, restart. |

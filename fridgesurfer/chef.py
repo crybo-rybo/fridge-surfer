@@ -5,6 +5,7 @@ from collections.abc import Callable
 import requests
 
 from fridgesurfer import config
+from fridgesurfer.ollama_client import raise_for_ollama_status
 
 logger = logging.getLogger(__name__)
 StreamCallback = Callable[[str, str], None]
@@ -42,7 +43,7 @@ def _stream_chat(payload: dict, callback: StreamCallback) -> str:
         timeout=180,
         stream=True,
     ) as resp:
-        resp.raise_for_status()
+        raise_for_ollama_status(resp, model=payload["model"], endpoint="/api/chat")
 
         for line in resp.iter_lines(decode_unicode=True):
             if not line:
@@ -131,7 +132,7 @@ def generate_recipe(
                 json=payload,
                 timeout=180,
             )
-            resp.raise_for_status()
+            raise_for_ollama_status(resp, model=payload["model"], endpoint="/api/chat")
             recipe = resp.json()["message"]["content"].strip()
         else:
             recipe = _stream_chat(payload, stream_callback).strip()
