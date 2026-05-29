@@ -118,6 +118,15 @@ Photo captioned /scan     → VLM only, returns ingredient list
 
 Uncaptioned photos are ignored. This is useful for testing without a mounted camera or when you're away from the Jetson.
 
+### Running tests
+
+Unit tests use pytest and stdlib mocks — no Ollama, camera, or Telegram required:
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/unit -q
+```
+
 ## Status
 
 Hobby project in active development. Currently standing up the core pipeline and testing model interactions before putting anything inside an actual fridge.
