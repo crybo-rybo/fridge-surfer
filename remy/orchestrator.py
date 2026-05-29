@@ -6,6 +6,8 @@ from remy.camera import CameraUnavailableError
 
 logger = logging.getLogger(__name__)
 StreamCallback = Callable[[str, str], None]
+IngredientsCallback = Callable[[list[str]], None]
+SavedCallback = Callable[[int], None]
 
 _MSG_CAMERA_FAIL = (
     "Sorry, I couldn't access the camera right now. Please try again later."
@@ -20,10 +22,30 @@ _MSG_OLLAMA_DOWN = (
 )
 
 
+def format_ingredients(ingredients: list[str]) -> str:
+    if ingredients:
+        return "Ingredients found:\n" + "\n".join(f"• {i}" for i in ingredients)
+    return "No ingredients detected."
+
+
+def get_last_recipe_text() -> str:
+    result = memory.get_last_recipe()
+    if result is None:
+        return "No recipes in history yet."
+    recipe_id, text = result
+    return f"[Recipe #{recipe_id}]\n\n{text}"
+
+
+def format_feedback_saved(recipe_id: int, rating: int) -> str:
+    return f"Saved rating {rating} for recipe #{recipe_id}."
+
+
 def run(
     image_bytes: bytes | None = None,
     vision_stream_callback: StreamCallback | None = None,
     chef_stream_callback: StreamCallback | None = None,
+    on_ingredients: IngredientsCallback | None = None,
+    on_saved: SavedCallback | None = None,
 ) -> str:
     """Run the full pipeline and return a recipe string.
 
@@ -53,6 +75,9 @@ def run(
     if not ingredients:
         return _MSG_EMPTY_FRIDGE
 
+    if on_ingredients is not None:
+        on_ingredients(ingredients)
+
     # ── Step 3: fetch recent recipes for context ──────────────────────────────
     recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
 
@@ -68,7 +93,36 @@ def run(
         return _MSG_OLLAMA_DOWN
 
     # ── Step 5: persist ───────────────────────────────────────────────────────
-    memory.save_recipe(ingredients, recipe)
+    recipe_id = memory.save_recipe(ingredients, recipe)
+    if on_saved is not None:
+        on_saved(recipe_id)
+
+    return recipe
+
+
+def run_chef_only(
+    ingredients: list[str],
+    chef_stream_callback: StreamCallback | None = None,
+    on_saved: SavedCallback | None = None,
+) -> str:
+    """Generate and persist a recipe from a known ingredient list (no VLM)."""
+    if not ingredients:
+        return _MSG_EMPTY_FRIDGE
+
+    recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
+    try:
+        recipe = chef.generate_recipe(
+            ingredients,
+            recent,
+            stream_callback=chef_stream_callback,
+        )
+    except Exception:
+        logger.exception("Chef module failed unexpectedly")
+        return _MSG_OLLAMA_DOWN
+
+    recipe_id = memory.save_recipe(ingredients, recipe)
+    if on_saved is not None:
+        on_saved(recipe_id)
 
     return recipe
 

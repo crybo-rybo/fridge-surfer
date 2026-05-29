@@ -96,12 +96,6 @@ async def _download_image_bytes(
         return None
 
 
-def _format_ingredients(ingredients: list[str]) -> str:
-    if ingredients:
-        return "Ingredients found:\n" + "\n".join(f"• {i}" for i in ingredients)
-    return "No ingredients detected."
-
-
 # ── Command handlers ──────────────────────────────────────────────────────────
 
 async def cmd_recipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -142,7 +136,7 @@ async def cmd_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     await update.message.reply_text("Running vision scan only...")
     ingredients = orchestrator.scan()
-    await update.message.reply_text(_format_ingredients(ingredients))
+    await update.message.reply_text(orchestrator.format_ingredients(ingredients))
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -169,18 +163,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(recipe)
     else:
         ingredients = await asyncio.to_thread(orchestrator.scan, image_bytes=image_bytes)
-        await update.message.reply_text(_format_ingredients(ingredients))
+        await update.message.reply_text(orchestrator.format_ingredients(ingredients))
 
 
 async def cmd_last(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_allowed(update):
         return
-    result = memory.get_last_recipe()
-    if result is None:
-        await update.message.reply_text("No recipes in history yet.")
-    else:
-        recipe_id, text = result
-        await update.message.reply_text(f"[Recipe #{recipe_id}]\n\n{text}")
+    await update.message.reply_text(orchestrator.get_last_recipe_text())
 
 
 async def cmd_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -195,7 +184,7 @@ async def cmd_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text("Rating must be between 1 and 5.")
         return
     memory.rate_recipe(recipe_id, rating)
-    await update.message.reply_text(f"Saved rating {rating} for recipe #{recipe_id}.")
+    await update.message.reply_text(orchestrator.format_feedback_saved(recipe_id, rating))
 
 
 # ── Scheduled job ─────────────────────────────────────────────────────────────

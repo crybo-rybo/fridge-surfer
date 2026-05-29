@@ -72,7 +72,7 @@ remy/
 
 ## Development on a Mac
 
-The intended target is a Jetson, but the whole pipeline (minus the camera and Telegram) can be exercised locally:
+The intended target is a Jetson, but the whole pipeline (minus the camera and Telegram) can be exercised locally. The debug CLI calls the same [`orchestrator.py`](remy/orchestrator.py) pipeline as the Telegram bot.
 
 ```bash
 # 1. Create the virtual environment

@@ -20,7 +20,7 @@ import logging
 import argparse
 from pathlib import Path
 
-from remy import chef, config, memory, orchestrator, vision
+from remy import config, memory, orchestrator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -86,6 +86,13 @@ def _load_image(path: str) -> bytes:
     return target.read_bytes()
 
 
+def _print_ingredients(ingredients: list[str]) -> None:
+    print("Ingredients detected:")
+    for item in ingredients:
+        print(f"  • {item}")
+    print()
+
+
 def _cmd_recipe(args: list[str]) -> None:
     if not args:
         print("[error] /recipe requires an image path, e.g.: /recipe path/to/fridge.jpg")
@@ -95,42 +102,45 @@ def _cmd_recipe(args: list[str]) -> None:
         return
     print("[*] Running full pipeline...")
     vlm_stream = _OllamaStreamPrinter("VLM")
-    vlm_stream.begin()
-    ingredients = vision.extract_ingredients(
-        image_bytes,
-        stream_callback=vlm_stream,
-    )
-    vlm_stream.finish()
-
-    if not ingredients:
-        print("The fridge looks empty (or the VLM output could not be parsed).\n")
-        return
-
-    print("Ingredients detected:")
-    for item in ingredients:
-        print(f"  • {item}")
-    print()
-
-    recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
-    print(f"[*] Calling chef with {len(ingredients)} ingredient(s), {len(recent)} recent recipe(s)...")
     chef_stream = _OllamaStreamPrinter("Chef")
-    chef_stream.begin()
-    try:
-        recipe = chef.generate_recipe(
-            ingredients,
-            recent,
-            stream_callback=chef_stream,
+    saved_id: list[int] = []
+    vlm_finished = False
+
+    def _on_ingredients(ingredients: list[str]) -> None:
+        nonlocal vlm_finished
+        vlm_stream.finish()
+        vlm_finished = True
+        _print_ingredients(ingredients)
+        recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
+        print(
+            f"[*] Calling chef with {len(ingredients)} ingredient(s), "
+            f"{len(recent)} recent recipe(s)..."
         )
-    except Exception as exc:
+        chef_stream.begin()
+
+    def _on_saved(recipe_id: int) -> None:
+        saved_id.append(recipe_id)
+
+    vlm_stream.begin()
+    recipe = orchestrator.run(
+        image_bytes=image_bytes,
+        vision_stream_callback=vlm_stream,
+        chef_stream_callback=chef_stream,
+        on_ingredients=_on_ingredients,
+        on_saved=_on_saved,
+    )
+    if not vlm_finished:
+        vlm_stream.finish()
+    if chef_stream.saw_any or saved_id:
         chef_stream.finish()
-        print(f"[error] Chef failed: {exc}")
+
+    if not saved_id:
+        print(recipe + "\n")
         return
 
-    recipe_id = memory.save_recipe(ingredients, recipe)
-    chef_stream.finish()
     if not chef_stream.saw_response:
         print("\n" + recipe + "\n")
-    print(f"Saved recipe #{recipe_id}.\n")
+    print(f"Saved recipe #{saved_id[0]}.\n")
 
 
 def _cmd_scan(args: list[str]) -> None:
@@ -169,31 +179,26 @@ def _cmd_ingredients(args: list[str]) -> None:
     recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
     print(f"[*] Calling chef with {len(items)} ingredient(s), {len(recent)} recent recipe(s)...")
     chef_stream = _OllamaStreamPrinter("Chef")
+    saved_id: list[int] = []
     chef_stream.begin()
-    try:
-        recipe = chef.generate_recipe(
-            items,
-            recent,
-            stream_callback=chef_stream,
-        )
-    except Exception as exc:
-        chef_stream.finish()
-        print(f"[error] Chef failed: {exc}")
-        return
-    recipe_id = memory.save_recipe(items, recipe)
+    recipe = orchestrator.run_chef_only(
+        items,
+        chef_stream_callback=chef_stream,
+        on_saved=saved_id.append,
+    )
     chef_stream.finish()
+
+    if not saved_id:
+        print(recipe + "\n")
+        return
+
     if not chef_stream.saw_response:
         print("\n" + recipe + "\n")
-    print(f"Saved recipe #{recipe_id}.\n")
+    print(f"Saved recipe #{saved_id[0]}.\n")
 
 
 def _cmd_last(_args: list[str]) -> None:
-    result = memory.get_last_recipe()
-    if result is None:
-        print("No recipes in history yet.\n")
-    else:
-        recipe_id, text = result
-        print(f"[Recipe #{recipe_id}]\n\n{text}\n")
+    print(orchestrator.get_last_recipe_text() + "\n")
 
 
 def _cmd_feedback(args: list[str]) -> None:
@@ -205,7 +210,7 @@ def _cmd_feedback(args: list[str]) -> None:
         print("[error] Rating must be between 1 and 5.")
         return
     memory.rate_recipe(recipe_id, rating)
-    print(f"Saved rating {rating} for recipe #{recipe_id}.\n")
+    print(orchestrator.format_feedback_saved(recipe_id, rating) + "\n")
 
 
 def _print_help(_args: list[str] | None = None) -> None:
