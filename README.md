@@ -1,6 +1,20 @@
-# Remy
+<p align="center">
+  <img src="assets/logo.png" alt="Remy Logo" width="240" height="240" />
+</p>
 
-A tiny AI that lives near a fridge, stares at its contents, and figures out what to make for dinner.
+<h1 align="center">Remy</h1>
+
+<p align="center">
+  <strong>A tiny AI that lives near a fridge, stares at its contents, and figures out what to make for dinner.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python Version" />
+  <img src="https://img.shields.io/badge/Ollama-Local%20AI-000000?style=flat-square&logo=ollama&logoColor=white" alt="Ollama Local AI" />
+  <img src="https://img.shields.io/badge/Hardware-Jetson%20Orin-76B900?style=flat-square&logo=nvidia&logoColor=white" alt="NVIDIA Jetson Orin" />
+  <img src="https://img.shields.io/badge/Telegram-Bot-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Telegram Bot" />
+  <img src="https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite Database" />
+</p>
 
 ---
 
