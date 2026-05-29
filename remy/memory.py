@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from pathlib import Path
 
-from fridgesurfer import config
+from remy import config
 
 logger = logging.getLogger(__name__)
 

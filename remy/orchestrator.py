@@ -1,8 +1,8 @@
 import logging
 from collections.abc import Callable
 
-from fridgesurfer import config, memory, vision, chef
-from fridgesurfer.camera import CameraUnavailableError
+from remy import config, memory, vision, chef
+from remy.camera import CameraUnavailableError
 
 logger = logging.getLogger(__name__)
 StreamCallback = Callable[[str, str], None]
@@ -33,7 +33,7 @@ def run(
     """
     # ── Step 1: acquire image ─────────────────────────────────────────────────
     if image_bytes is None:
-        from fridgesurfer import camera  # noqa: PLC0415
+        from remy import camera  # noqa: PLC0415
         try:
             image_bytes = camera.capture()
         except CameraUnavailableError:
@@ -83,7 +83,7 @@ def scan(
     generating a recipe.
     """
     if image_bytes is None:
-        from fridgesurfer import camera  # noqa: PLC0415
+        from remy import camera  # noqa: PLC0415
         try:
             image_bytes = camera.capture()
         except CameraUnavailableError:

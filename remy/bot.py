@@ -18,7 +18,7 @@ from telegram.ext import (
     filters,
 )
 
-from fridgesurfer import config, memory, orchestrator
+from remy import config, memory, orchestrator
 
 logger = logging.getLogger(__name__)
 _THIRD_PARTY_LOGGERS = (
@@ -32,7 +32,7 @@ _TEST_IMAGE_PATH = (
     / "fixtures"
     / "ingredients_chicken_caprese.png"
 )
-_HELP_TEXT = """Fridge Surfer commands:
+_HELP_TEXT = """Remy commands:
 
 /help - Show this command list.
 /recipe - Scan the fridge camera and generate a recipe.
@@ -234,7 +234,7 @@ def main() -> None:
     async def on_startup(app: Application) -> None:
         await app.bot.send_message(
             chat_id=tg["allowed_chat_id"],
-            text="Fridge Surfer is online. Send /help for available commands.",
+            text="Remy is online. Send /help for available commands.",
         )
 
     app.post_init = on_startup

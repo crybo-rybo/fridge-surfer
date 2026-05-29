@@ -1,7 +1,7 @@
 import io
 import logging
 
-from fridgesurfer import config
+from remy import config
 
 logger = logging.getLogger(__name__)
 

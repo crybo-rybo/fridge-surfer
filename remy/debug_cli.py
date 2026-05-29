@@ -1,7 +1,7 @@
 """Debug CLI — interactive REPL that replaces the Telegram bot for local testing.
 
 Usage:
-    python -m fridgesurfer.debug_cli
+    python -m remy.debug_cli
 
 Commands inside the REPL:
     /recipe <PATH>            Full pipeline (VLM → chef → memory)
@@ -20,13 +20,13 @@ import logging
 import argparse
 from pathlib import Path
 
-from fridgesurfer import chef, config, memory, orchestrator, vision
+from remy import chef, config, memory, orchestrator, vision
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s  %(name)s  %(message)s",
 )
-logger = logging.getLogger("fridgesurfer")
+logger = logging.getLogger("remy")
 
 
 class _OllamaStreamPrinter:
@@ -225,7 +225,7 @@ _COMMANDS = {
 def run() -> None:
     memory.init_db()
 
-    print("Fridge Surfer debug CLI")
+    print("Remy debug CLI")
     print(f"  Vision model : {config.VISION_MODEL}")
     print(f"  Chef model   : {config.CHEF_MODEL}")
     print(f"  Ollama host  : {config.OLLAMA_HOST}")
@@ -260,7 +260,7 @@ def run() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Fridge Surfer interactive debug CLI",
+        description="Remy interactive debug CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -271,7 +271,7 @@ def main() -> None:
     ns = parser.parse_args()
 
     if ns.debug:
-        logging.getLogger("fridgesurfer").setLevel(logging.DEBUG)
+        logging.getLogger("remy").setLevel(logging.DEBUG)
 
     run()
 

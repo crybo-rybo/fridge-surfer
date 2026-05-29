@@ -1,4 +1,4 @@
-# Fridge Surfer
+# Remy
 
 A tiny AI that lives near a fridge, stares at its contents, and figures out what to make for dinner.
 
@@ -8,7 +8,7 @@ A tiny AI that lives near a fridge, stares at its contents, and figures out what
 
 The refrigerator stare is a universal human experience. Door opens, eyes glaze over, door closes. Nothing was accomplished.
 
-Fridge Surfer is a local AI appliance running on a **Jetson Orin Nano Super** tucked somewhere near the refrigerator. It takes a photo of the fridge interior, identifies what's in there, and generates a dinner recipe using only what it sees — delivered via Telegram like a tiny chef that lives in the kitchen wall.
+Remy is a local AI appliance running on a **Jetson Orin Nano Super** tucked somewhere near the refrigerator. It takes a photo of the fridge interior, identifies what's in there, and generates a dinner recipe using only what it sees — delivered via Telegram like a tiny chef that lives in the kitchen wall.
 
 No cloud APIs. No subscriptions. No uploading photos of sad leftovers to a server farm. Everything runs locally.
 
@@ -45,7 +45,7 @@ Both models run locally via **Ollama** — which means the whole thing works off
 ## Project Structure
 
 ```
-fridgesurfer/
+remy/
 ├── config.py       # env vars + per-model prompt registry
 ├── vision.py       # VLM wrapper → ingredient list
 ├── chef.py         # chat LLM wrapper → recipe
@@ -78,7 +78,7 @@ ollama pull ministral-3:3b
 cp .env.example .env
 
 # 6. Launch the debug CLI
-python -m fridgesurfer.debug_cli
+python -m remy.debug_cli
 ```
 
 For production deployment to a Jetson Orin Nano Super, see [DEPLOYMENT.md](DEPLOYMENT.md).

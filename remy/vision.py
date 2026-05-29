@@ -6,8 +6,8 @@ from collections.abc import Callable
 
 import requests
 
-from fridgesurfer import config
-from fridgesurfer.ollama_client import raise_for_ollama_status
+from remy import config
+from remy.ollama_client import raise_for_ollama_status
 
 logger = logging.getLogger(__name__)
 
