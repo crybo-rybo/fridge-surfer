@@ -29,14 +29,14 @@ _THIRD_PARTY_LOGGERS = (
 _TEST_IMAGE_PATH = (
     Path(__file__).resolve().parents[1]
     / "tests"
-    / "fixtures"
+    / "images"
     / "ingredients_chicken_caprese.png"
 )
 _HELP_TEXT = """Remy commands:
 
 /help - Show this command list.
 /recipe - Scan the fridge camera and generate a recipe.
-/test - Run the full pipeline with a bundled fixture image.
+/test - Run the full pipeline with a bundled test image.
 /scan - Scan the fridge camera and list detected ingredients.
 /last - Show the most recent saved recipe.
 /feedback <recipe_id> <rating 1-5> - Rate a saved recipe.
@@ -122,16 +122,16 @@ async def cmd_test(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_allowed(update):
         return
     if not _TEST_IMAGE_PATH.exists():
-        await update.message.reply_text(f"Test fixture not found: {_TEST_IMAGE_PATH}")
+        await update.message.reply_text(f"Test image not found: {_TEST_IMAGE_PATH}")
         return
     await update.message.reply_text(
-        f"Running full pipeline with test fixture: {_TEST_IMAGE_PATH.name}"
+        f"Running full pipeline with test image: {_TEST_IMAGE_PATH.name}"
     )
     try:
         image_bytes = _TEST_IMAGE_PATH.read_bytes()
     except OSError:
-        logger.exception("Failed to read test fixture: %s", _TEST_IMAGE_PATH)
-        await update.message.reply_text("Sorry, I couldn't read the test fixture.")
+        logger.exception("Failed to read test image: %s", _TEST_IMAGE_PATH)
+        await update.message.reply_text("Sorry, I couldn't read the test image.")
         return
     recipe = orchestrator.run(image_bytes=image_bytes)
     await update.message.reply_text(recipe)

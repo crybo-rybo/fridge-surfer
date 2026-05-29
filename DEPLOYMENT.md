@@ -323,7 +323,7 @@ Walk through each of these before declaring the deployment done. Each one corres
 |---|---|---|
 | 1 | Bot is running as the service user | `systemctl status remy` shows `Active: active` and `User=remy`. |
 | 2 | `/help` lists available commands | Send `/help`; reply includes each Telegram command and what it does. |
-| 3 | `/test` works with a fixture | Send `/test` from your Telegram client; recipe arrives without touching the camera. |
+| 3 | `/test` works with a test image | Send `/test` from your Telegram client; recipe arrives without touching the camera. |
 | 4 | `/recipe` works on demand | Send `/recipe` from your Telegram client; recipe arrives within ~60 s. |
 | 5 | `/scan` returns an ingredient list | Send `/scan`; reply is a clean bulleted list. |
 | 5b | Photo captioned `/recipe` works | Send a fridge photo with caption `/recipe`; recipe arrives without using the camera. |
