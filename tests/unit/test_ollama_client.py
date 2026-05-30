@@ -112,6 +112,8 @@ class TestStreamRequest:
     def test_raises_on_error_chunk(self):
         lines = [json.dumps({"error": "out of memory"})]
         _events, cb = _collect_callback()
-        with patch("remy.ollama_client.requests.post", _streaming_post(lines)):
-            with pytest.raises(RuntimeError, match="out of memory"):
-                stream_request("/api/chat", {"model": "m"}, cb, timeout=5)
+        with (
+            patch("remy.ollama_client.requests.post", _streaming_post(lines)),
+            pytest.raises(RuntimeError, match="out of memory"),
+        ):
+            stream_request("/api/chat", {"model": "m"}, cb, timeout=5)

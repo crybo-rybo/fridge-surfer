@@ -131,10 +131,9 @@ def extract_ingredients(
     prompt = _prompt_for(model)
     image_b64 = base64.standard_b64encode(image_bytes).decode()
 
+    n = passes if passes is not None else config.VISION_PASSES
     if stream_callback is not None:
-        n = 1
-    else:
-        n = passes if passes is not None else config.VISION_PASSES
+        n = 1  # streaming inspects a single pass
     n = max(1, n)
 
     results = [

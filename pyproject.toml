@@ -1,0 +1,13 @@
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes, I import sorting, UP pyupgrade, B bugbear,
+# C4 comprehensions, SIM simplify, plus the import-outside-top-level rule the
+# `# noqa: PLC0415` hints in the codebase already reference.
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "PLC0415"]
+ignore = ["E501"]  # long lines (mostly prompt strings) are intentional
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E402"]  # conftest sets required env vars before importing remy

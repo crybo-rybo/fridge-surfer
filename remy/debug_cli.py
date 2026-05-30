@@ -21,8 +21,8 @@ Commands inside the REPL:
 work without one. Model calls stream raw Ollama output so you can inspect
 thinking/content chunks and timing while testing.
 """
-import logging
 import argparse
+import logging
 from pathlib import Path
 
 from remy import config, memory, orchestrator

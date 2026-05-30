@@ -1,5 +1,7 @@
+import contextlib
 import os
 import sys
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -52,10 +54,9 @@ def get_telegram_config() -> dict:
 
 
 CAMERA_INDEX: str | int = os.getenv("CAMERA_INDEX", "0")
-try:
+# A non-integer value is a GStreamer pipeline string — kept as-is.
+with contextlib.suppress(ValueError):
     CAMERA_INDEX = int(CAMERA_INDEX)
-except ValueError:
-    pass  # GStreamer pipeline string — keep as-is
 
 
 # ── Prompt registry ───────────────────────────────────────────────────────────

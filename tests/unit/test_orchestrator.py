@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import pytest
-
 from remy import orchestrator
 from remy.camera import CameraUnavailableError
 

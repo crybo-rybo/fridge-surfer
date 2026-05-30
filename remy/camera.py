@@ -1,4 +1,3 @@
-import io
 import logging
 
 from remy import config
@@ -21,11 +20,6 @@ def capture() -> bytes:
         import cv2  # noqa: PLC0415
     except ImportError as exc:
         raise CameraUnavailableError("opencv-python not installed") from exc
-
-    try:
-        from PIL import Image  # noqa: PLC0415
-    except ImportError:
-        Image = None  # type: ignore[assignment]
 
     cap = cv2.VideoCapture(config.CAMERA_INDEX)
     if not cap.isOpened():

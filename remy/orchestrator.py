@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Callable
 
-from remy import config, memory, vision, chef
+from remy import chef, config, memory, vision
 from remy.camera import CameraUnavailableError
 
 logger = logging.getLogger(__name__)
