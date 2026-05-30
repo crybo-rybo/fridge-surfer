@@ -1,4 +1,7 @@
-from remy.vision import _parse, _prompt_for
+from unittest.mock import patch
+
+from remy import vision
+from remy.vision import _parse, _prompt_for, _union
 
 
 class TestParse:
@@ -49,3 +52,34 @@ class TestPromptFor:
     def test_unknown_model_uses_fallback(self):
         prompt = _prompt_for("unknown-model")
         assert prompt == "List all food items visible as a JSON array of strings."
+
+
+class TestUnion:
+    def test_dedupes_case_insensitively_preserving_order(self):
+        assert _union([["milk", "Eggs"], ["eggs", "cheese"]]) == ["milk", "Eggs", "cheese"]
+
+    def test_drops_blanks(self):
+        assert _union([["milk", "  "], ["", "eggs"]]) == ["milk", "eggs"]
+
+    def test_empty(self):
+        assert _union([[], []]) == []
+
+
+class TestMultiPass:
+    @patch("remy.vision._extract_once")
+    def test_runs_n_passes_and_unions(self, mock_once):
+        mock_once.side_effect = [["milk", "eggs"], ["Eggs", "cheese"]]
+        result = vision.extract_ingredients(b"img", passes=2)
+        assert result == ["milk", "eggs", "cheese"]
+        assert mock_once.call_count == 2
+
+    @patch("remy.vision._extract_once", return_value=["milk"])
+    def test_streaming_forces_single_pass(self, mock_once):
+        vision.extract_ingredients(b"img", stream_callback=lambda kind, text: None, passes=5)
+        assert mock_once.call_count == 1
+
+    @patch("remy.vision._extract_once", return_value=["milk"])
+    def test_defaults_to_config_passes(self, mock_once):
+        with patch.object(vision.config, "VISION_PASSES", 3):
+            vision.extract_ingredients(b"img")
+        assert mock_once.call_count == 3

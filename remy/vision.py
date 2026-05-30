@@ -60,20 +60,26 @@ def _parse(raw: str) -> list[str]:
     return items
 
 
-def extract_ingredients(
-    image_bytes: bytes,
-    model: str | None = None,
-    stream_callback: StreamCallback | None = None,
+def _union(passes: list[list[str]]) -> list[str]:
+    """Merge per-pass ingredient lists, case-insensitively, first-seen order."""
+    seen: set[str] = set()
+    merged: list[str] = []
+    for items in passes:
+        for item in items:
+            key = item.strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                merged.append(item)
+    return merged
+
+
+def _extract_once(
+    image_b64: str,
+    model: str,
+    prompt: str,
+    stream_callback: StreamCallback | None,
 ) -> list[str]:
-    """Call the Ollama VLM and return a clean list of ingredient strings.
-
-    Returns [] if the model output is unparseable or the request fails.
-    """
-    model = model or config.VISION_MODEL
-    prompt = _prompt_for(model)
-
-    image_b64 = base64.standard_b64encode(image_bytes).decode()
-
+    """Run a single VLM pass and return its parsed ingredients ([] on failure)."""
     payload = {
         "model": model,
         "prompt": prompt,
@@ -105,7 +111,37 @@ def extract_ingredients(
         return []
 
     logger.debug("VLM raw output: %r", raw)
+    return _parse(raw)
 
-    ingredients = _parse(raw)
-    logger.info("Extracted %d ingredients via %r", len(ingredients), model)
+
+def extract_ingredients(
+    image_bytes: bytes,
+    model: str | None = None,
+    stream_callback: StreamCallback | None = None,
+    passes: int | None = None,
+) -> list[str]:
+    """Call the Ollama VLM and return a clean list of ingredient strings.
+
+    Runs ``passes`` independent VLM passes (default: config.VISION_PASSES) and
+    unions the results to catch items a single pass misses. Streaming inspects a
+    single pass, so a stream_callback forces one pass. Returns [] if every pass
+    fails or yields nothing.
+    """
+    model = model or config.VISION_MODEL
+    prompt = _prompt_for(model)
+    image_b64 = base64.standard_b64encode(image_bytes).decode()
+
+    if stream_callback is not None:
+        n = 1
+    else:
+        n = passes if passes is not None else config.VISION_PASSES
+    n = max(1, n)
+
+    results = [
+        _extract_once(image_b64, model, prompt, stream_callback) for _ in range(n)
+    ]
+    ingredients = _union(results)
+    logger.info(
+        "Extracted %d ingredients via %r over %d pass(es)", len(ingredients), model, n
+    )
     return ingredients

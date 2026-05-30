@@ -34,6 +34,9 @@ OLLAMA_HOST = _require("OLLAMA_HOST")
 OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
 VISION_NUM_CTX = _optional_int("VISION_NUM_CTX", 2048)
 CHEF_NUM_CTX = _optional_int("CHEF_NUM_CTX", 2048)
+# Number of VLM passes per scan; results are unioned to catch items a single
+# pass misses (occluded items, model sampling variance). 1 = original behavior.
+VISION_PASSES = _optional_int("VISION_PASSES", 1)
 VISION_MODEL = _require("VISION_MODEL")
 CHEF_MODEL = _require("CHEF_MODEL")
 DB_PATH = _require("DB_PATH")
