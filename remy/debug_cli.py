@@ -172,14 +172,23 @@ def _cmd_scan(args: list[str]) -> None:
     print()
 
 
+def _parse_ingredient_args(args: list[str]) -> list[str]:
+    """Parse a free-form ingredient list, tolerating the quotes the help shows.
+
+    e.g. ['"milk,', 'eggs"'] (from `/ingredients "milk, eggs"`) -> ['milk', 'eggs'].
+    """
+    raw = " ".join(args).strip().strip("\"'")
+    items = [piece for piece in (p.strip().strip("\"'") for p in raw.split(",")) if piece]
+    if not items:
+        items = raw.split()
+    return items
+
+
 def _cmd_ingredients(args: list[str]) -> None:
     if not args:
         print("[error] Provide an ingredient list, e.g.: /ingredients \"milk, eggs, cheese\"")
         return
-    raw = " ".join(args)
-    items = [i.strip() for i in raw.split(",") if i.strip()]
-    if not items:
-        items = raw.split()
+    items = _parse_ingredient_args(args)
 
     recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
     print(f"[*] Calling chef with {len(items)} ingredient(s), {len(recent)} recent recipe(s)...")
