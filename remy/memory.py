@@ -53,6 +53,31 @@ def get_recent_recipes(n: int) -> list[str]:
     return [r["recipe_text"] for r in rows]
 
 
+def get_top_rated_recipes(n: int, min_rating: int = 4) -> list[str]:
+    """Highest-rated recipe texts (rating >= min_rating), best first.
+
+    Unrated recipes (rating IS NULL) are excluded by the comparison.
+    """
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT recipe_text FROM recipes WHERE rating >= ? "
+            "ORDER BY rating DESC, timestamp DESC LIMIT ?",
+            (min_rating, n),
+        ).fetchall()
+    return [r["recipe_text"] for r in rows]
+
+
+def get_disliked_recipes(n: int, max_rating: int = 2) -> list[str]:
+    """Lowest-rated recipe texts (rating <= max_rating), worst first."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT recipe_text FROM recipes WHERE rating IS NOT NULL AND rating <= ? "
+            "ORDER BY rating ASC, timestamp DESC LIMIT ?",
+            (max_rating, n),
+        ).fetchall()
+    return [r["recipe_text"] for r in rows]
+
+
 def get_last_recipe() -> tuple[int, str] | None:
     """Returns (id, recipe_text) of the most recent recipe, or None."""
     with _get_conn() as conn:

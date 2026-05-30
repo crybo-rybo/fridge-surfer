@@ -61,6 +61,36 @@ class TestRateRecipe:
         assert row[0] == 4
 
 
+class TestRatedRecipes:
+    def test_top_rated_orders_by_rating_and_excludes_unrated(self):
+        _init()
+        memory.rate_recipe(memory.save_recipe(["a"], "Good"), 4)
+        memory.rate_recipe(memory.save_recipe(["b"], "Best"), 5)
+        memory.save_recipe(["c"], "Unrated")
+        memory.rate_recipe(memory.save_recipe(["d"], "Meh"), 2)
+        assert memory.get_top_rated_recipes(5) == ["Best", "Good"]
+
+    def test_top_rated_respects_limit(self):
+        _init()
+        memory.rate_recipe(memory.save_recipe(["a"], "Five"), 5)
+        memory.rate_recipe(memory.save_recipe(["b"], "Four"), 4)
+        assert memory.get_top_rated_recipes(1) == ["Five"]
+
+    def test_disliked_excludes_unrated_and_highly_rated(self):
+        _init()
+        memory.rate_recipe(memory.save_recipe(["a"], "Bad"), 1)
+        memory.rate_recipe(memory.save_recipe(["b"], "Okay"), 2)
+        memory.save_recipe(["c"], "Unrated")
+        memory.rate_recipe(memory.save_recipe(["d"], "Loved"), 5)
+        assert memory.get_disliked_recipes(5) == ["Bad", "Okay"]
+
+    def test_empty_when_no_ratings(self):
+        _init()
+        memory.save_recipe(["a"], "Unrated")
+        assert memory.get_top_rated_recipes(5) == []
+        assert memory.get_disliked_recipes(5) == []
+
+
 class TestQueryIngredientsFrequency:
     def test_aggregates_ingredients(self):
         _init()

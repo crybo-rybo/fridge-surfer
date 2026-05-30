@@ -6,6 +6,8 @@ from remy.camera import CameraUnavailableError
 
 logger = logging.getLogger(__name__)
 StreamCallback = Callable[[str, str], None]
+# How many liked/disliked past recipes to feed the chef as taste guidance.
+_FEEDBACK_RECIPES_N = 3
 IngredientsCallback = Callable[[list[str]], None]
 SavedCallback = Callable[[int], None]
 
@@ -78,14 +80,18 @@ def run(
     if on_ingredients is not None:
         on_ingredients(ingredients)
 
-    # ── Step 3: fetch recent recipes for context ──────────────────────────────
+    # ── Step 3: fetch recent + rated recipes for context ──────────────────────
     recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
+    favorites = memory.get_top_rated_recipes(_FEEDBACK_RECIPES_N)
+    dislikes = memory.get_disliked_recipes(_FEEDBACK_RECIPES_N)
 
     # ── Step 4: generate recipe ───────────────────────────────────────────────
     try:
         recipe = chef.generate_recipe(
             ingredients,
             recent,
+            favorites=favorites,
+            dislikes=dislikes,
             stream_callback=chef_stream_callback,
         )
     except Exception:
@@ -110,10 +116,14 @@ def run_chef_only(
         return _MSG_EMPTY_FRIDGE
 
     recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
+    favorites = memory.get_top_rated_recipes(_FEEDBACK_RECIPES_N)
+    dislikes = memory.get_disliked_recipes(_FEEDBACK_RECIPES_N)
     try:
         recipe = chef.generate_recipe(
             ingredients,
             recent,
+            favorites=favorites,
+            dislikes=dislikes,
             stream_callback=chef_stream_callback,
         )
     except Exception:

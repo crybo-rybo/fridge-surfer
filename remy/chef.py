@@ -11,30 +11,60 @@ StreamCallback = Callable[[str, str], None]
 _TIMEOUT = 180
 
 
+def _summarize_titles(recipes: list[str]) -> str:
+    """Collapse recipe texts to their title lines for compact prompt context."""
+    return "; ".join(
+        r.splitlines()[0] if r.splitlines() else r[:60]
+        for r in recipes
+    )
+
+
+def build_user_content(
+    ingredients: list[str],
+    recent_recipes: list[str],
+    favorites: list[str] | None = None,
+    dislikes: list[str] | None = None,
+    constraints: str | None = None,
+) -> str:
+    """Assemble the chef's user message from ingredients and feedback history.
+
+    Pure function (no I/O) so the prompt-shaping logic can be unit tested.
+    """
+    parts = [f"Available ingredients: {', '.join(ingredients)}"]
+
+    if recent_recipes:
+        parts.append(
+            "Please suggest something different from these recent recipes: "
+            f"{_summarize_titles(recent_recipes)}"
+        )
+    if favorites:
+        parts.append(
+            "The cook rated these recipes highly — lean toward this style: "
+            f"{_summarize_titles(favorites)}"
+        )
+    if dislikes:
+        parts.append(
+            "The cook disliked these recipes — avoid anything similar: "
+            f"{_summarize_titles(dislikes)}"
+        )
+    if constraints:
+        parts.append(f"Dietary constraints / preferences: {constraints}")
+
+    return "\n".join(parts)
+
+
 def generate_recipe(
     ingredients: list[str],
     recent_recipes: list[str],
+    favorites: list[str] | None = None,
+    dislikes: list[str] | None = None,
     constraints: str | None = None,
     stream_callback: StreamCallback | None = None,
 ) -> str:
     """Call the Ollama chat LLM and return a recipe as plain text."""
-    parts = [
-        f"Available ingredients: {', '.join(ingredients)}",
-    ]
-
-    if recent_recipes:
-        recent_summary = "; ".join(
-            r.splitlines()[0] if r.splitlines() else r[:60]
-            for r in recent_recipes
-        )
-        parts.append(
-            f"Please suggest something different from these recent recipes: {recent_summary}"
-        )
-
-    if constraints:
-        parts.append(f"Dietary constraints / preferences: {constraints}")
-
-    user_content = "\n".join(parts)
+    user_content = build_user_content(
+        ingredients, recent_recipes, favorites, dislikes, constraints
+    )
 
     payload = {
         "model": config.CHEF_MODEL,

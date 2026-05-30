@@ -28,11 +28,15 @@ class TestFormatHelpers:
 
 
 class TestRun:
+    @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
+    @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_recent_recipes", return_value=[])
     @patch("remy.orchestrator.memory.save_recipe", return_value=7)
     @patch("remy.orchestrator.chef.generate_recipe", return_value="Pasta")
     @patch("remy.orchestrator.vision.extract_ingredients", return_value=["tomato"])
-    def test_happy_path(self, mock_vision, mock_chef, mock_save, _mock_recent):
+    def test_happy_path(
+        self, mock_vision, mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked
+    ):
         seen_ingredients: list[list[str]] = []
         seen_ids: list[int] = []
 
@@ -65,11 +69,15 @@ class TestRun:
         result = orchestrator.run(image_bytes=b"jpg")
         assert "fridge looks empty" in result
 
+    @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
+    @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_recent_recipes", return_value=[])
     @patch("remy.orchestrator.memory.save_recipe")
     @patch("remy.orchestrator.chef.generate_recipe", side_effect=RuntimeError("chef down"))
     @patch("remy.orchestrator.vision.extract_ingredients", return_value=["milk"])
-    def test_chef_failure(self, _mock_vision, _mock_chef, mock_save, _mock_recent):
+    def test_chef_failure(
+        self, _mock_vision, _mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked
+    ):
         result = orchestrator.run(image_bytes=b"jpg")
         assert "AI models appear to be unavailable" in result
         mock_save.assert_not_called()
@@ -96,10 +104,14 @@ class TestRunChefOnly:
         result = orchestrator.run_chef_only([])
         assert "fridge looks empty" in result
 
+    @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
+    @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_recent_recipes", return_value=[])
     @patch("remy.orchestrator.memory.save_recipe", return_value=2)
     @patch("remy.orchestrator.chef.generate_recipe", return_value="Omelette")
-    def test_happy_path(self, mock_chef, mock_save, _mock_recent):
+    def test_happy_path(
+        self, mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked
+    ):
         saved: list[int] = []
         result = orchestrator.run_chef_only(["eggs"], on_saved=saved.append)
         assert result == "Omelette"
@@ -107,10 +119,14 @@ class TestRunChefOnly:
         mock_save.assert_called_once_with(["eggs"], "Omelette")
         assert saved == [2]
 
+    @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
+    @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_recent_recipes", return_value=[])
     @patch("remy.orchestrator.memory.save_recipe")
     @patch("remy.orchestrator.chef.generate_recipe", side_effect=RuntimeError("chef down"))
-    def test_chef_failure(self, _mock_chef, mock_save, _mock_recent):
+    def test_chef_failure(
+        self, _mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked
+    ):
         result = orchestrator.run_chef_only(["eggs"])
         assert "AI models appear to be unavailable" in result
         mock_save.assert_not_called()
