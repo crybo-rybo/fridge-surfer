@@ -41,6 +41,7 @@ _HELP_TEXT = """Remy commands:
 /scan - Scan the fridge camera and list detected ingredients.
 /last - Show the most recent saved recipe.
 /feedback <recipe_id> <rating 1-5> - Rate a saved recipe.
+/pantry - List staples. /pantry add <item> or /pantry remove <item> to edit.
 
 Tip: tap the ⭐ buttons under a recipe to rate it instantly.
 
@@ -212,6 +213,12 @@ async def cmd_last(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(orchestrator.get_last_recipe_text())
 
 
+async def cmd_pantry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+    await update.message.reply_text(orchestrator.pantry_command(context.args or []))
+
+
 async def cmd_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_allowed(update):
         return
@@ -276,6 +283,7 @@ def main() -> None:
     app.add_handler(CommandHandler("test", cmd_test))
     app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CommandHandler("last", cmd_last))
+    app.add_handler(CommandHandler("pantry", cmd_pantry))
     app.add_handler(CommandHandler("feedback", cmd_feedback))
     app.add_handler(CallbackQueryHandler(on_rating_callback, pattern=f"^{_RATING_PREFIX}:"))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))

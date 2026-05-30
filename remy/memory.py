@@ -27,6 +27,45 @@ def init_db() -> None:
                 constraints TEXT
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pantry (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                item     TEXT NOT NULL UNIQUE,
+                added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+
+# ── Pantry staples ────────────────────────────────────────────────────────────
+# Items the kitchen always has but the fridge camera can't see (rice, oil,
+# canned goods). Merged with detected ingredients before the chef runs.
+
+def add_pantry_item(item: str) -> bool:
+    """Add a staple. Returns False if blank or already present (case-insensitive)."""
+    normalized = item.strip().lower()
+    if not normalized:
+        return False
+    with _get_conn() as conn:
+        try:
+            conn.execute("INSERT INTO pantry (item) VALUES (?)", (normalized,))
+        except sqlite3.IntegrityError:
+            return False
+    logger.info("Added pantry item %r", normalized)
+    return True
+
+
+def remove_pantry_item(item: str) -> bool:
+    """Remove a staple. Returns True if a row was deleted."""
+    normalized = item.strip().lower()
+    with _get_conn() as conn:
+        cur = conn.execute("DELETE FROM pantry WHERE item = ?", (normalized,))
+        return cur.rowcount > 0
+
+
+def list_pantry_items() -> list[str]:
+    with _get_conn() as conn:
+        rows = conn.execute("SELECT item FROM pantry ORDER BY item").fetchall()
+    return [r["item"] for r in rows]
 
 
 def save_recipe(

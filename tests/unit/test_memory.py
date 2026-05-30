@@ -91,6 +91,32 @@ class TestRatedRecipes:
         assert memory.get_disliked_recipes(5) == []
 
 
+class TestPantry:
+    def test_add_and_list_sorted(self):
+        _init()
+        assert memory.add_pantry_item("rice") is True
+        assert memory.add_pantry_item("olive oil") is True
+        assert memory.list_pantry_items() == ["olive oil", "rice"]
+
+    def test_add_normalizes_and_dedupes(self):
+        _init()
+        assert memory.add_pantry_item("  Rice ") is True
+        assert memory.add_pantry_item("RICE") is False
+        assert memory.list_pantry_items() == ["rice"]
+
+    def test_add_blank_rejected(self):
+        _init()
+        assert memory.add_pantry_item("   ") is False
+        assert memory.list_pantry_items() == []
+
+    def test_remove(self):
+        _init()
+        memory.add_pantry_item("rice")
+        assert memory.remove_pantry_item("RICE") is True
+        assert memory.remove_pantry_item("rice") is False
+        assert memory.list_pantry_items() == []
+
+
 class TestQueryIngredientsFrequency:
     def test_aggregates_ingredients(self):
         _init()

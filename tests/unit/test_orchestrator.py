@@ -27,7 +27,50 @@ class TestFormatHelpers:
         assert text == "[Recipe #3]\n\nPasta night"
 
 
+class TestMergePantry:
+    def test_unions_and_preserves_detected_order(self):
+        assert orchestrator.merge_pantry(["tomato", "egg"], ["rice", "oil"]) == [
+            "tomato",
+            "egg",
+            "rice",
+            "oil",
+        ]
+
+    def test_dedupes_case_insensitively_detected_wins(self):
+        # "Rice" detected in the fridge shouldn't be duplicated by the pantry staple.
+        assert orchestrator.merge_pantry(["Rice"], ["rice", "oil"]) == ["Rice", "oil"]
+
+    def test_drops_blanks(self):
+        assert orchestrator.merge_pantry(["egg", "  "], ["", "oil"]) == ["egg", "oil"]
+
+
+class TestPantryCommand:
+    def test_list_empty(self):
+        orchestrator.memory.init_db()
+        assert "empty" in orchestrator.pantry_command([])
+
+    def test_add_then_list(self):
+        orchestrator.memory.init_db()
+        assert "Added" in orchestrator.pantry_command(["add", "olive oil"])
+        listing = orchestrator.pantry_command(["list"])
+        assert "• olive oil" in listing
+
+    def test_add_duplicate(self):
+        orchestrator.memory.init_db()
+        orchestrator.pantry_command(["add", "rice"])
+        assert "Already have" in orchestrator.pantry_command(["add", "RICE"])
+
+    def test_remove_missing(self):
+        orchestrator.memory.init_db()
+        assert "isn't in the pantry" in orchestrator.pantry_command(["remove", "rice"])
+
+    def test_unknown_action(self):
+        orchestrator.memory.init_db()
+        assert "Usage:" in orchestrator.pantry_command(["frobnicate"])
+
+
 class TestRun:
+    @patch("remy.orchestrator.memory.list_pantry_items", return_value=[])
     @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_recent_recipes", return_value=[])
@@ -35,7 +78,14 @@ class TestRun:
     @patch("remy.orchestrator.chef.generate_recipe", return_value="Pasta")
     @patch("remy.orchestrator.vision.extract_ingredients", return_value=["tomato"])
     def test_happy_path(
-        self, mock_vision, mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked
+        self,
+        mock_vision,
+        mock_chef,
+        mock_save,
+        _mock_recent,
+        _mock_top,
+        _mock_disliked,
+        _mock_pantry,
     ):
         seen_ingredients: list[list[str]] = []
         seen_ids: list[int] = []
@@ -69,6 +119,7 @@ class TestRun:
         result = orchestrator.run(image_bytes=b"jpg")
         assert "fridge looks empty" in result
 
+    @patch("remy.orchestrator.memory.list_pantry_items", return_value=[])
     @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_recent_recipes", return_value=[])
@@ -76,7 +127,14 @@ class TestRun:
     @patch("remy.orchestrator.chef.generate_recipe", side_effect=RuntimeError("chef down"))
     @patch("remy.orchestrator.vision.extract_ingredients", return_value=["milk"])
     def test_chef_failure(
-        self, _mock_vision, _mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked
+        self,
+        _mock_vision,
+        _mock_chef,
+        mock_save,
+        _mock_recent,
+        _mock_top,
+        _mock_disliked,
+        _mock_pantry,
     ):
         result = orchestrator.run(image_bytes=b"jpg")
         assert "AI models appear to be unavailable" in result

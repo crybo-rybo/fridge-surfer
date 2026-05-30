@@ -30,6 +30,49 @@ def format_ingredients(ingredients: list[str]) -> str:
     return "No ingredients detected."
 
 
+def merge_pantry(detected: list[str], pantry: list[str]) -> list[str]:
+    """Union detected ingredients with pantry staples, case-insensitively.
+
+    Detected items come first (and win on casing); duplicates are dropped.
+    """
+    seen: set[str] = set()
+    merged: list[str] = []
+    for item in [*detected, *pantry]:
+        key = item.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            merged.append(item)
+    return merged
+
+
+def pantry_command(args: list[str]) -> str:
+    """Handle '/pantry [list | add <item> | remove <item>]' for any front-end."""
+    if not args or args[0].lower() == "list":
+        items = memory.list_pantry_items()
+        if not items:
+            return "Your pantry is empty. Add a staple with: /pantry add <item>"
+        return "Pantry staples:\n" + "\n".join(f"• {i}" for i in items)
+
+    action = args[0].lower()
+    item = " ".join(args[1:]).strip()
+    if action == "add":
+        if not item:
+            return "Usage: /pantry add <item>"
+        added = memory.add_pantry_item(item)
+        verb = "Added" if added else "Already have"
+        return f"{verb} '{item.lower()}' in the pantry."
+    if action == "remove":
+        if not item:
+            return "Usage: /pantry remove <item>"
+        removed = memory.remove_pantry_item(item)
+        return (
+            f"Removed '{item.lower()}' from the pantry."
+            if removed
+            else f"'{item.lower()}' isn't in the pantry."
+        )
+    return "Usage: /pantry [list | add <item> | remove <item>]"
+
+
 def get_last_recipe_text() -> str:
     result = memory.get_last_recipe()
     if result is None:
@@ -80,15 +123,17 @@ def run(
     if on_ingredients is not None:
         on_ingredients(ingredients)
 
-    # ── Step 3: fetch recent + rated recipes for context ──────────────────────
+    # ── Step 3: fetch recent + rated recipes and pantry staples for context ───
     recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
     favorites = memory.get_top_rated_recipes(_FEEDBACK_RECIPES_N)
     dislikes = memory.get_disliked_recipes(_FEEDBACK_RECIPES_N)
+    # The camera only sees the fridge; fold in always-on-hand pantry staples.
+    available = merge_pantry(ingredients, memory.list_pantry_items())
 
     # ── Step 4: generate recipe ───────────────────────────────────────────────
     try:
         recipe = chef.generate_recipe(
-            ingredients,
+            available,
             recent,
             favorites=favorites,
             dislikes=dislikes,
@@ -98,7 +143,7 @@ def run(
         logger.exception("Chef module failed unexpectedly")
         return _MSG_OLLAMA_DOWN
 
-    # ── Step 5: persist ───────────────────────────────────────────────────────
+    # ── Step 5: persist (record what the fridge actually held, not staples) ────
     recipe_id = memory.save_recipe(ingredients, recipe)
     if on_saved is not None:
         on_saved(recipe_id)
