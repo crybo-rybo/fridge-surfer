@@ -102,7 +102,7 @@ async def cmd_recipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if not _is_allowed(update):
         return
     await update.message.reply_text("Scanning the fridge and generating a recipe, please wait...")
-    recipe = orchestrator.run()
+    recipe = await asyncio.to_thread(orchestrator.run)
     await update.message.reply_text(recipe)
 
 
@@ -127,7 +127,7 @@ async def cmd_test(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.exception("Failed to read test image: %s", _TEST_IMAGE_PATH)
         await update.message.reply_text("Sorry, I couldn't read the test image.")
         return
-    recipe = orchestrator.run(image_bytes=image_bytes)
+    recipe = await asyncio.to_thread(orchestrator.run, image_bytes=image_bytes)
     await update.message.reply_text(recipe)
 
 
@@ -135,7 +135,7 @@ async def cmd_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_allowed(update):
         return
     await update.message.reply_text("Running vision scan only...")
-    ingredients = orchestrator.scan()
+    ingredients = await asyncio.to_thread(orchestrator.scan)
     await update.message.reply_text(orchestrator.format_ingredients(ingredients))
 
 
@@ -193,7 +193,7 @@ async def _scheduled_recipe(context: ContextTypes.DEFAULT_TYPE) -> None:
     tg = config.get_telegram_config()
     chat_id = tg["allowed_chat_id"]
     logger.info("Running scheduled recipe pipeline")
-    recipe = orchestrator.run()
+    recipe = await asyncio.to_thread(orchestrator.run)
     await _send(context, chat_id, recipe)
 
 
