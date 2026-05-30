@@ -9,9 +9,10 @@ from datetime import time
 from pathlib import Path
 from typing import Literal
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -41,18 +42,45 @@ _HELP_TEXT = """Remy commands:
 /last - Show the most recent saved recipe.
 /feedback <recipe_id> <rating 1-5> - Rate a saved recipe.
 
+Tip: tap the ⭐ buttons under a recipe to rate it instantly.
+
 Send a photo captioned /recipe to generate a recipe from that image.
 Send a photo captioned /scan to list detected ingredients only.
 /recipe and /scan (without a photo) still use the fridge camera."""
+
+_RATING_PREFIX = "rate"
+
+
+def _rating_keyboard(recipe_id: int) -> InlineKeyboardMarkup:
+    """A single row of 1–5 star buttons that rate the given recipe in one tap."""
+    buttons = [
+        InlineKeyboardButton(
+            f"{n}⭐", callback_data=f"{_RATING_PREFIX}:{recipe_id}:{n}"
+        )
+        for n in range(1, 6)
+    ]
+    return InlineKeyboardMarkup([buttons])
+
+
+def _parse_rating_callback(data: str) -> tuple[int, int] | None:
+    """Parse 'rate:<id>:<rating>' callback data into (recipe_id, rating).
+
+    Returns None for anything that isn't a well-formed rating in 1–5.
+    """
+    parts = (data or "").split(":")
+    if len(parts) != 3 or parts[0] != _RATING_PREFIX:
+        return None
+    if not parts[1].isdigit() or not parts[2].isdigit():
+        return None
+    rating = int(parts[2])
+    if rating not in range(1, 6):
+        return None
+    return int(parts[1]), rating
 
 
 def _is_allowed(update: Update) -> bool:
     tg = config.get_telegram_config()
     return update.effective_chat is not None and update.effective_chat.id == tg["allowed_chat_id"]
-
-
-async def _send(context: ContextTypes.DEFAULT_TYPE, chat_id: int, text: str) -> None:
-    await context.bot.send_message(chat_id=chat_id, text=text)
 
 
 PhotoMode = Literal["recipe", "scan"]
@@ -98,12 +126,26 @@ async def _download_image_bytes(
 
 # ── Command handlers ──────────────────────────────────────────────────────────
 
+async def _run_recipe_and_reply(update: Update, image_bytes: bytes | None = None) -> None:
+    """Run the full pipeline and reply with the recipe + rating buttons.
+
+    The orchestrator persists the recipe and reports its id through on_saved;
+    we capture that to attach a star keyboard. If nothing was saved (a camera
+    or model failure returned a fallback string), reply without buttons.
+    """
+    saved_id: list[int] = []
+    recipe = await asyncio.to_thread(
+        orchestrator.run, image_bytes=image_bytes, on_saved=saved_id.append
+    )
+    reply_markup = _rating_keyboard(saved_id[0]) if saved_id else None
+    await update.message.reply_text(recipe, reply_markup=reply_markup)
+
+
 async def cmd_recipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_allowed(update):
         return
     await update.message.reply_text("Scanning the fridge and generating a recipe, please wait...")
-    recipe = await asyncio.to_thread(orchestrator.run)
-    await update.message.reply_text(recipe)
+    await _run_recipe_and_reply(update)
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -127,8 +169,7 @@ async def cmd_test(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.exception("Failed to read test image: %s", _TEST_IMAGE_PATH)
         await update.message.reply_text("Sorry, I couldn't read the test image.")
         return
-    recipe = await asyncio.to_thread(orchestrator.run, image_bytes=image_bytes)
-    await update.message.reply_text(recipe)
+    await _run_recipe_and_reply(update, image_bytes=image_bytes)
 
 
 async def cmd_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -159,8 +200,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     await update.message.reply_text("Processing your photo...")
     if mode == "recipe":
-        recipe = await asyncio.to_thread(orchestrator.run, image_bytes=image_bytes)
-        await update.message.reply_text(recipe)
+        await _run_recipe_and_reply(update, image_bytes=image_bytes)
     else:
         ingredients = await asyncio.to_thread(orchestrator.scan, image_bytes=image_bytes)
         await update.message.reply_text(orchestrator.format_ingredients(ingredients))
@@ -187,14 +227,40 @@ async def cmd_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(orchestrator.format_feedback_saved(recipe_id, rating))
 
 
+async def on_rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle taps on the inline ⭐ buttons attached to a recipe."""
+    query = update.callback_query
+    if query is None:
+        return
+    if not _is_allowed(update):
+        await query.answer()
+        return
+
+    parsed = _parse_rating_callback(query.data or "")
+    if parsed is None:
+        await query.answer("Sorry, I couldn't read that rating.")
+        return
+
+    recipe_id, rating = parsed
+    memory.rate_recipe(recipe_id, rating)
+    await query.answer(f"Rated recipe #{recipe_id}: {rating}⭐")
+    # Clear the buttons so the same recipe can't be re-rated; keep its text.
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        logger.debug("Could not clear rating keyboard", exc_info=True)
+
+
 # ── Scheduled job ─────────────────────────────────────────────────────────────
 
 async def _scheduled_recipe(context: ContextTypes.DEFAULT_TYPE) -> None:
     tg = config.get_telegram_config()
     chat_id = tg["allowed_chat_id"]
     logger.info("Running scheduled recipe pipeline")
-    recipe = await asyncio.to_thread(orchestrator.run)
-    await _send(context, chat_id, recipe)
+    saved_id: list[int] = []
+    recipe = await asyncio.to_thread(orchestrator.run, on_saved=saved_id.append)
+    reply_markup = _rating_keyboard(saved_id[0]) if saved_id else None
+    await context.bot.send_message(chat_id=chat_id, text=recipe, reply_markup=reply_markup)
 
 
 # ── Bot startup ───────────────────────────────────────────────────────────────
@@ -211,6 +277,7 @@ def main() -> None:
     app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CommandHandler("last", cmd_last))
     app.add_handler(CommandHandler("feedback", cmd_feedback))
+    app.add_handler(CallbackQueryHandler(on_rating_callback, pattern=f"^{_RATING_PREFIX}:"))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))
 
     # Schedule daily recipe
