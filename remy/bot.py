@@ -40,29 +40,37 @@ _HELP_TEXT = """Remy commands:
 /test - Run the full pipeline with a bundled test image.
 /scan - Scan the fridge camera and list detected ingredients.
 /last - Show the most recent saved recipe.
+/history - List recent recipes with their ids.
+/show <recipe_id> - Show a specific saved recipe.
 /feedback <recipe_id> <rating 1-5> - Rate a saved recipe.
 /pantry - List staples. /pantry add <item> or /pantry remove <item> to edit.
 /diet - Show the dietary preference. /diet <text> to set, /diet clear to unset.
 /stats - Show the most frequently detected ingredients.
 
-Tip: tap the ⭐ buttons under a recipe to rate it instantly.
+Tip: tap the ⭐ buttons under a recipe to rate it, or 🔁 for another idea.
 
 Send a photo captioned /recipe to generate a recipe from that image.
 Send a photo captioned /scan to list detected ingredients only.
 /recipe and /scan (without a photo) still use the fridge camera."""
 
 _RATING_PREFIX = "rate"
+_REGEN_PREFIX = "regen"
 
 
-def _rating_keyboard(recipe_id: int) -> InlineKeyboardMarkup:
-    """A single row of 1–5 star buttons that rate the given recipe in one tap."""
-    buttons = [
+def _recipe_keyboard(recipe_id: int) -> InlineKeyboardMarkup:
+    """1–5 star rating buttons plus a 'regenerate from the same ingredients' button."""
+    stars = [
         InlineKeyboardButton(
             f"{n}⭐", callback_data=f"{_RATING_PREFIX}:{recipe_id}:{n}"
         )
         for n in range(1, 6)
     ]
-    return InlineKeyboardMarkup([buttons])
+    another = [
+        InlineKeyboardButton(
+            "🔁 Another", callback_data=f"{_REGEN_PREFIX}:{recipe_id}"
+        )
+    ]
+    return InlineKeyboardMarkup([stars, another])
 
 
 def _parse_rating_callback(data: str) -> tuple[int, int] | None:
@@ -79,6 +87,14 @@ def _parse_rating_callback(data: str) -> tuple[int, int] | None:
     if rating not in range(1, 6):
         return None
     return int(parts[1]), rating
+
+
+def _parse_regen_callback(data: str) -> int | None:
+    """Parse 'regen:<id>' callback data into a recipe id, or None."""
+    parts = (data or "").split(":")
+    if len(parts) != 2 or parts[0] != _REGEN_PREFIX or not parts[1].isdigit():
+        return None
+    return int(parts[1])
 
 
 def _is_allowed(update: Update) -> bool:
@@ -140,7 +156,7 @@ async def _run_recipe_and_reply(update: Update, image_bytes: bytes | None = None
     recipe = await asyncio.to_thread(
         orchestrator.run, image_bytes=image_bytes, on_saved=saved_id.append
     )
-    reply_markup = _rating_keyboard(saved_id[0]) if saved_id else None
+    reply_markup = _recipe_keyboard(saved_id[0]) if saved_id else None
     await update.message.reply_text(recipe, reply_markup=reply_markup)
 
 
@@ -215,6 +231,22 @@ async def cmd_last(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(orchestrator.get_last_recipe_text())
 
 
+async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+    await update.message.reply_text(orchestrator.format_history())
+
+
+async def cmd_show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+    args = context.args or []
+    if len(args) != 1 or not args[0].isdigit():
+        await update.message.reply_text("Usage: /show <recipe_id>")
+        return
+    await update.message.reply_text(orchestrator.format_recipe(int(args[0])))
+
+
 async def cmd_pantry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_allowed(update):
         return
@@ -269,7 +301,38 @@ async def on_rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         await query.edit_message_reply_markup(reply_markup=None)
     except Exception:
-        logger.debug("Could not clear rating keyboard", exc_info=True)
+        logger.debug("Could not clear recipe keyboard", exc_info=True)
+
+
+async def on_regen_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle taps on the '🔁 Another' button: re-cook from the same ingredients."""
+    query = update.callback_query
+    if query is None:
+        return
+    if not _is_allowed(update):
+        await query.answer()
+        return
+
+    recipe_id = _parse_regen_callback(query.data or "")
+    if recipe_id is None:
+        await query.answer("Sorry, I couldn't read that.")
+        return
+
+    ingredients = memory.get_recipe_ingredients(recipe_id)
+    if not ingredients:
+        await query.answer("I don't have the ingredients for that recipe anymore.")
+        return
+
+    await query.answer("Cooking up another idea...")
+    saved_id: list[int] = []
+    recipe = await asyncio.to_thread(
+        orchestrator.run_chef_only, ingredients, on_saved=saved_id.append
+    )
+    reply_markup = _recipe_keyboard(saved_id[0]) if saved_id else None
+    if query.message is not None:
+        await context.bot.send_message(
+            chat_id=query.message.chat_id, text=recipe, reply_markup=reply_markup
+        )
 
 
 # ── Scheduled job ─────────────────────────────────────────────────────────────
@@ -280,7 +343,7 @@ async def _scheduled_recipe(context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info("Running scheduled recipe pipeline")
     saved_id: list[int] = []
     recipe = await asyncio.to_thread(orchestrator.run, on_saved=saved_id.append)
-    reply_markup = _rating_keyboard(saved_id[0]) if saved_id else None
+    reply_markup = _recipe_keyboard(saved_id[0]) if saved_id else None
     await context.bot.send_message(chat_id=chat_id, text=recipe, reply_markup=reply_markup)
 
 
@@ -297,11 +360,14 @@ def main() -> None:
     app.add_handler(CommandHandler("test", cmd_test))
     app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CommandHandler("last", cmd_last))
+    app.add_handler(CommandHandler("history", cmd_history))
+    app.add_handler(CommandHandler("show", cmd_show))
     app.add_handler(CommandHandler("pantry", cmd_pantry))
     app.add_handler(CommandHandler("diet", cmd_diet))
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("feedback", cmd_feedback))
     app.add_handler(CallbackQueryHandler(on_rating_callback, pattern=f"^{_RATING_PREFIX}:"))
+    app.add_handler(CallbackQueryHandler(on_regen_callback, pattern=f"^{_REGEN_PREFIX}:"))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))
 
     # Schedule daily recipe

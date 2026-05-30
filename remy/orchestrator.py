@@ -110,6 +110,33 @@ def get_last_recipe_text() -> str:
     return f"[Recipe #{recipe_id}]\n\n{text}"
 
 
+def _recipe_title(text: str) -> str:
+    lines = text.splitlines()
+    return lines[0] if lines else text[:60]
+
+
+def format_history(n: int = 5) -> str:
+    rows = memory.get_recipe_history(n)
+    if not rows:
+        return "No recipes in history yet."
+    lines = []
+    for recipe_id, text, rating in rows:
+        stars = f" — {rating}⭐" if rating else ""
+        lines.append(f"#{recipe_id}: {_recipe_title(text)}{stars}")
+    return "Recent recipes:\n" + "\n".join(lines)
+
+
+def format_recipe(recipe_id: int) -> str:
+    row = memory.get_recipe_by_id(recipe_id)
+    if row is None:
+        return f"No recipe found with id #{recipe_id}."
+    rid, text, rating = row
+    header = f"[Recipe #{rid}]"
+    if rating:
+        header += f" — rated {rating}⭐"
+    return f"{header}\n\n{text}"
+
+
 def format_feedback_saved(recipe_id: int, rating: int) -> str:
     return f"Saved rating {rating} for recipe #{recipe_id}."
 

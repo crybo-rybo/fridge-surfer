@@ -158,6 +158,43 @@ def get_last_recipe() -> tuple[int, str] | None:
     return row["id"], row["recipe_text"]
 
 
+def get_recipe_by_id(recipe_id: int) -> tuple[int, str, int | None] | None:
+    """Returns (id, recipe_text, rating) for one recipe, or None if absent."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, recipe_text, rating FROM recipes WHERE id = ?",
+            (recipe_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return row["id"], row["recipe_text"], row["rating"]
+
+
+def get_recipe_history(n: int) -> list[tuple[int, str, int | None]]:
+    """(id, recipe_text, rating) for the n most recent recipes, newest first."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, recipe_text, rating FROM recipes ORDER BY timestamp DESC LIMIT ?",
+            (n,),
+        ).fetchall()
+    return [(r["id"], r["recipe_text"], r["rating"]) for r in rows]
+
+
+def get_recipe_ingredients(recipe_id: int) -> list[str] | None:
+    """The ingredient list a recipe was generated from, for regeneration."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT ingredients FROM recipes WHERE id = ?", (recipe_id,)
+        ).fetchone()
+    if row is None:
+        return None
+    try:
+        items = json.loads(row["ingredients"])
+    except json.JSONDecodeError:
+        return None
+    return [str(i) for i in items] if isinstance(items, list) else None
+
+
 def rate_recipe(recipe_id: int, rating: int) -> None:
     with _get_conn() as conn:
         conn.execute(

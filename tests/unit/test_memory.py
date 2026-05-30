@@ -48,6 +48,37 @@ class TestSaveAndRetrieve:
         assert recent == ["Three", "Two"]
 
 
+class TestRecipeLookup:
+    def test_get_recipe_by_id_found(self):
+        _init()
+        rid = memory.save_recipe(["milk"], "Pancakes")
+        memory.rate_recipe(rid, 5)
+        assert memory.get_recipe_by_id(rid) == (rid, "Pancakes", 5)
+
+    def test_get_recipe_by_id_missing(self):
+        _init()
+        assert memory.get_recipe_by_id(999) is None
+
+    def test_get_recipe_history_newest_first_with_ratings(self):
+        _init()
+        id1 = memory.save_recipe(["a"], "First")
+        id2 = memory.save_recipe(["b"], "Second")
+        memory.rate_recipe(id1, 3)
+        _set_timestamp(id1, "2020-01-01 00:00:00")
+        _set_timestamp(id2, "2020-01-02 00:00:00")
+        history = memory.get_recipe_history(5)
+        assert history == [(id2, "Second", None), (id1, "First", 3)]
+
+    def test_get_recipe_ingredients_roundtrip(self):
+        _init()
+        rid = memory.save_recipe(["milk", "eggs"], "Omelette")
+        assert memory.get_recipe_ingredients(rid) == ["milk", "eggs"]
+
+    def test_get_recipe_ingredients_missing(self):
+        _init()
+        assert memory.get_recipe_ingredients(999) is None
+
+
 class TestRateRecipe:
     def test_rate_recipe_persists(self):
         _init()

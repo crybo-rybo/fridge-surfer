@@ -1,6 +1,11 @@
 import pytest
 
-from remy.bot import _parse_rating_callback, _photo_mode_from_caption, _rating_keyboard
+from remy.bot import (
+    _parse_rating_callback,
+    _parse_regen_callback,
+    _photo_mode_from_caption,
+    _recipe_keyboard,
+)
 
 
 @pytest.mark.parametrize(
@@ -39,9 +44,26 @@ def test_parse_rating_callback(data, expected):
     assert _parse_rating_callback(data) == expected
 
 
-def test_rating_keyboard_has_five_star_buttons():
-    markup = _rating_keyboard(7)
-    (row,) = markup.inline_keyboard
-    assert len(row) == 5
-    assert [b.text for b in row] == ["1⭐", "2⭐", "3⭐", "4⭐", "5⭐"]
-    assert [b.callback_data for b in row] == [f"rate:7:{n}" for n in range(1, 6)]
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        ("regen:7", 7),
+        ("regen:42", 42),
+        ("regen:abc", None),
+        ("regen", None),
+        ("regen:7:1", None),
+        ("rate:7", None),
+        ("", None),
+    ],
+)
+def test_parse_regen_callback(data, expected):
+    assert _parse_regen_callback(data) == expected
+
+
+def test_recipe_keyboard_has_stars_and_regenerate():
+    markup = _recipe_keyboard(7)
+    star_row, regen_row = markup.inline_keyboard
+    assert [b.text for b in star_row] == ["1⭐", "2⭐", "3⭐", "4⭐", "5⭐"]
+    assert [b.callback_data for b in star_row] == [f"rate:7:{n}" for n in range(1, 6)]
+    assert len(regen_row) == 1
+    assert regen_row[0].callback_data == "regen:7"

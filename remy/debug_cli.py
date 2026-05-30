@@ -11,6 +11,8 @@ Commands inside the REPL:
     /diet [<text>|clear]      Show/set/clear the standing dietary preference
     /stats                    Most frequently detected ingredients
     /last                     Show last recipe from memory
+    /history                  List recent recipes with ids
+    /show <id>                Show a specific saved recipe
     /feedback <id> <rating>   Rate a recipe (1-5)
     /help                     Show this help
     /quit                     Exit
@@ -216,6 +218,17 @@ def _cmd_last(_args: list[str]) -> None:
     print(orchestrator.get_last_recipe_text() + "\n")
 
 
+def _cmd_history(_args: list[str]) -> None:
+    print(orchestrator.format_history() + "\n")
+
+
+def _cmd_show(args: list[str]) -> None:
+    if len(args) != 1 or not args[0].isdigit():
+        print("[error] Usage: /show <recipe_id>")
+        return
+    print(orchestrator.format_recipe(int(args[0])) + "\n")
+
+
 def _cmd_feedback(args: list[str]) -> None:
     if len(args) != 2 or not args[0].isdigit() or not args[1].isdigit():
         print("[error] Usage: /feedback <recipe_id> <rating 1-5>")
@@ -240,6 +253,8 @@ _COMMANDS = {
     "/diet": _cmd_diet,
     "/stats": _cmd_stats,
     "/last": _cmd_last,
+    "/history": _cmd_history,
+    "/show": _cmd_show,
     "/feedback": _cmd_feedback,
     "/help": _print_help,
 }

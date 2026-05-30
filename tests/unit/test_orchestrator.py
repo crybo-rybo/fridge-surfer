@@ -27,6 +27,36 @@ class TestFormatHelpers:
         assert text == "[Recipe #3]\n\nPasta night"
 
 
+class TestHistoryAndShow:
+    def test_history_empty(self):
+        orchestrator.memory.init_db()
+        assert orchestrator.format_history() == "No recipes in history yet."
+
+    def test_history_lists_titles_and_ratings(self):
+        orchestrator.memory.init_db()
+        rid = orchestrator.memory.save_recipe(["milk"], "Pancakes\nstep 1")
+        orchestrator.memory.rate_recipe(rid, 4)
+        text = orchestrator.format_history()
+        assert f"#{rid}: Pancakes — 4⭐" in text
+        assert "step 1" not in text
+
+    def test_show_missing(self):
+        orchestrator.memory.init_db()
+        assert orchestrator.format_recipe(999) == "No recipe found with id #999."
+
+    def test_show_found_with_rating(self):
+        orchestrator.memory.init_db()
+        rid = orchestrator.memory.save_recipe(["egg"], "Frittata\nfull body")
+        orchestrator.memory.rate_recipe(rid, 5)
+        text = orchestrator.format_recipe(rid)
+        assert text == f"[Recipe #{rid}] — rated 5⭐\n\nFrittata\nfull body"
+
+    def test_show_found_without_rating(self):
+        orchestrator.memory.init_db()
+        rid = orchestrator.memory.save_recipe(["egg"], "Frittata")
+        assert orchestrator.format_recipe(rid) == f"[Recipe #{rid}]\n\nFrittata"
+
+
 class TestMergePantry:
     def test_unions_and_preserves_detected_order(self):
         assert orchestrator.merge_pantry(["tomato", "egg"], ["rice", "oil"]) == [
