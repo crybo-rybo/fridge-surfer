@@ -8,6 +8,8 @@ Commands inside the REPL:
     /scan <PATH>              VLM only — returns ingredient list
     /ingredients "a, b, c"   Chef only — bypasses VLM (fastest for chef testing)
     /pantry [add|remove] X    List/edit always-on-hand staples merged into recipes
+    /diet [<text>|clear]      Show/set/clear the standing dietary preference
+    /stats                    Most frequently detected ingredients
     /last                     Show last recipe from memory
     /feedback <id> <rating>   Rate a recipe (1-5)
     /help                     Show this help
@@ -202,6 +204,14 @@ def _cmd_pantry(args: list[str]) -> None:
     print(orchestrator.pantry_command(args) + "\n")
 
 
+def _cmd_diet(args: list[str]) -> None:
+    print(orchestrator.diet_command(args) + "\n")
+
+
+def _cmd_stats(_args: list[str]) -> None:
+    print(orchestrator.format_ingredient_stats() + "\n")
+
+
 def _cmd_last(_args: list[str]) -> None:
     print(orchestrator.get_last_recipe_text() + "\n")
 
@@ -227,6 +237,8 @@ _COMMANDS = {
     "/scan": _cmd_scan,
     "/ingredients": _cmd_ingredients,
     "/pantry": _cmd_pantry,
+    "/diet": _cmd_diet,
+    "/stats": _cmd_stats,
     "/last": _cmd_last,
     "/feedback": _cmd_feedback,
     "/help": _print_help,

@@ -42,6 +42,8 @@ _HELP_TEXT = """Remy commands:
 /last - Show the most recent saved recipe.
 /feedback <recipe_id> <rating 1-5> - Rate a saved recipe.
 /pantry - List staples. /pantry add <item> or /pantry remove <item> to edit.
+/diet - Show the dietary preference. /diet <text> to set, /diet clear to unset.
+/stats - Show the most frequently detected ingredients.
 
 Tip: tap the ⭐ buttons under a recipe to rate it instantly.
 
@@ -219,6 +221,18 @@ async def cmd_pantry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text(orchestrator.pantry_command(context.args or []))
 
 
+async def cmd_diet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+    await update.message.reply_text(orchestrator.diet_command(context.args or []))
+
+
+async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_allowed(update):
+        return
+    await update.message.reply_text(orchestrator.format_ingredient_stats())
+
+
 async def cmd_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_allowed(update):
         return
@@ -284,6 +298,8 @@ def main() -> None:
     app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CommandHandler("last", cmd_last))
     app.add_handler(CommandHandler("pantry", cmd_pantry))
+    app.add_handler(CommandHandler("diet", cmd_diet))
+    app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("feedback", cmd_feedback))
     app.add_handler(CallbackQueryHandler(on_rating_callback, pattern=f"^{_RATING_PREFIX}:"))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_photo))

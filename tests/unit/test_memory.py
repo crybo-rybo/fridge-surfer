@@ -117,6 +117,29 @@ class TestPantry:
         assert memory.list_pantry_items() == []
 
 
+class TestSettings:
+    def test_get_unset_returns_none(self):
+        _init()
+        assert memory.get_setting("diet") is None
+
+    def test_set_and_get(self):
+        _init()
+        memory.set_setting("diet", "vegetarian")
+        assert memory.get_setting("diet") == "vegetarian"
+
+    def test_set_overwrites(self):
+        _init()
+        memory.set_setting("diet", "vegetarian")
+        memory.set_setting("diet", "vegan")
+        assert memory.get_setting("diet") == "vegan"
+
+    def test_delete(self):
+        _init()
+        memory.set_setting("diet", "vegan")
+        memory.delete_setting("diet")
+        assert memory.get_setting("diet") is None
+
+
 class TestQueryIngredientsFrequency:
     def test_aggregates_ingredients(self):
         _init()

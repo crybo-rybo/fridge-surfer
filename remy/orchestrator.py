@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 StreamCallback = Callable[[str, str], None]
 # How many liked/disliked past recipes to feed the chef as taste guidance.
 _FEEDBACK_RECIPES_N = 3
+# Settings key for the household's standing dietary preference.
+_DIET_KEY = "diet"
 IngredientsCallback = Callable[[list[str]], None]
 SavedCallback = Callable[[int], None]
 
@@ -73,6 +75,33 @@ def pantry_command(args: list[str]) -> str:
     return "Usage: /pantry [list | add <item> | remove <item>]"
 
 
+def diet_command(args: list[str]) -> str:
+    """Handle '/diet [<preference> | clear]' — the standing dietary constraint."""
+    if not args:
+        current = memory.get_setting(_DIET_KEY)
+        if current:
+            return f"Current dietary preference: {current}"
+        return "No dietary preference set. Set one with: /diet <e.g. vegetarian, no nuts>"
+
+    if len(args) == 1 and args[0].lower() == "clear":
+        memory.delete_setting(_DIET_KEY)
+        return "Dietary preference cleared."
+
+    value = " ".join(args).strip()
+    memory.set_setting(_DIET_KEY, value)
+    return f"Dietary preference set to: {value}"
+
+
+def format_ingredient_stats(top_n: int = 10) -> str:
+    """Rank the most frequently detected ingredients across recipe history."""
+    freq = memory.query_ingredients_frequency()
+    if not freq:
+        return "No recipes recorded yet — nothing to summarize."
+    ranked = sorted(freq.items(), key=lambda kv: (-kv[1], kv[0]))[:top_n]
+    lines = [f"• {item} ×{count}" for item, count in ranked]
+    return "Most-used ingredients:\n" + "\n".join(lines)
+
+
 def get_last_recipe_text() -> str:
     result = memory.get_last_recipe()
     if result is None:
@@ -129,6 +158,7 @@ def run(
     dislikes = memory.get_disliked_recipes(_FEEDBACK_RECIPES_N)
     # The camera only sees the fridge; fold in always-on-hand pantry staples.
     available = merge_pantry(ingredients, memory.list_pantry_items())
+    constraints = memory.get_setting(_DIET_KEY)
 
     # ── Step 4: generate recipe ───────────────────────────────────────────────
     try:
@@ -137,6 +167,7 @@ def run(
             recent,
             favorites=favorites,
             dislikes=dislikes,
+            constraints=constraints,
             stream_callback=chef_stream_callback,
         )
     except Exception:
@@ -144,7 +175,7 @@ def run(
         return _MSG_OLLAMA_DOWN
 
     # ── Step 5: persist (record what the fridge actually held, not staples) ────
-    recipe_id = memory.save_recipe(ingredients, recipe)
+    recipe_id = memory.save_recipe(ingredients, recipe, constraints=constraints)
     if on_saved is not None:
         on_saved(recipe_id)
 
@@ -163,19 +194,21 @@ def run_chef_only(
     recent = memory.get_recent_recipes(config.RECENT_RECIPES_N)
     favorites = memory.get_top_rated_recipes(_FEEDBACK_RECIPES_N)
     dislikes = memory.get_disliked_recipes(_FEEDBACK_RECIPES_N)
+    constraints = memory.get_setting(_DIET_KEY)
     try:
         recipe = chef.generate_recipe(
             ingredients,
             recent,
             favorites=favorites,
             dislikes=dislikes,
+            constraints=constraints,
             stream_callback=chef_stream_callback,
         )
     except Exception:
         logger.exception("Chef module failed unexpectedly")
         return _MSG_OLLAMA_DOWN
 
-    recipe_id = memory.save_recipe(ingredients, recipe)
+    recipe_id = memory.save_recipe(ingredients, recipe, constraints=constraints)
     if on_saved is not None:
         on_saved(recipe_id)
 

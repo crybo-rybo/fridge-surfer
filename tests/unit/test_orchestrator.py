@@ -69,7 +69,43 @@ class TestPantryCommand:
         assert "Usage:" in orchestrator.pantry_command(["frobnicate"])
 
 
+class TestDietCommand:
+    def test_show_unset(self):
+        orchestrator.memory.init_db()
+        assert "No dietary preference" in orchestrator.diet_command([])
+
+    def test_set_then_show(self):
+        orchestrator.memory.init_db()
+        assert "vegetarian, no nuts" in orchestrator.diet_command(
+            ["vegetarian,", "no", "nuts"]
+        )
+        assert orchestrator.diet_command([]) == (
+            "Current dietary preference: vegetarian, no nuts"
+        )
+
+    def test_clear(self):
+        orchestrator.memory.init_db()
+        orchestrator.diet_command(["pescatarian"])
+        assert "cleared" in orchestrator.diet_command(["clear"])
+        assert "No dietary preference" in orchestrator.diet_command([])
+
+
+class TestIngredientStats:
+    def test_empty_history(self):
+        orchestrator.memory.init_db()
+        assert "No recipes recorded" in orchestrator.format_ingredient_stats()
+
+    def test_ranks_by_frequency(self):
+        orchestrator.memory.init_db()
+        orchestrator.memory.save_recipe(["milk", "eggs"], "A")
+        orchestrator.memory.save_recipe(["milk", "cheese"], "B")
+        text = orchestrator.format_ingredient_stats()
+        # milk appears twice and should rank first.
+        assert text.splitlines()[1] == "• milk ×2"
+
+
 class TestRun:
+    @patch("remy.orchestrator.memory.get_setting", return_value=None)
     @patch("remy.orchestrator.memory.list_pantry_items", return_value=[])
     @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
@@ -86,6 +122,7 @@ class TestRun:
         _mock_top,
         _mock_disliked,
         _mock_pantry,
+        _mock_setting,
     ):
         seen_ingredients: list[list[str]] = []
         seen_ids: list[int] = []
@@ -100,7 +137,7 @@ class TestRun:
         mock_vision.assert_called_once()
         mock_chef.assert_called_once()
         assert mock_chef.call_args.args[0] == ["tomato"]
-        mock_save.assert_called_once_with(["tomato"], "Pasta")
+        mock_save.assert_called_once_with(["tomato"], "Pasta", constraints=None)
         assert seen_ingredients == [["tomato"]]
         assert seen_ids == [7]
 
@@ -119,6 +156,7 @@ class TestRun:
         result = orchestrator.run(image_bytes=b"jpg")
         assert "fridge looks empty" in result
 
+    @patch("remy.orchestrator.memory.get_setting", return_value=None)
     @patch("remy.orchestrator.memory.list_pantry_items", return_value=[])
     @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
@@ -135,6 +173,7 @@ class TestRun:
         _mock_top,
         _mock_disliked,
         _mock_pantry,
+        _mock_setting,
     ):
         result = orchestrator.run(image_bytes=b"jpg")
         assert "AI models appear to be unavailable" in result
@@ -162,28 +201,30 @@ class TestRunChefOnly:
         result = orchestrator.run_chef_only([])
         assert "fridge looks empty" in result
 
+    @patch("remy.orchestrator.memory.get_setting", return_value=None)
     @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_recent_recipes", return_value=[])
     @patch("remy.orchestrator.memory.save_recipe", return_value=2)
     @patch("remy.orchestrator.chef.generate_recipe", return_value="Omelette")
     def test_happy_path(
-        self, mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked
+        self, mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked, _mock_setting
     ):
         saved: list[int] = []
         result = orchestrator.run_chef_only(["eggs"], on_saved=saved.append)
         assert result == "Omelette"
         mock_chef.assert_called_once()
-        mock_save.assert_called_once_with(["eggs"], "Omelette")
+        mock_save.assert_called_once_with(["eggs"], "Omelette", constraints=None)
         assert saved == [2]
 
+    @patch("remy.orchestrator.memory.get_setting", return_value=None)
     @patch("remy.orchestrator.memory.get_disliked_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_top_rated_recipes", return_value=[])
     @patch("remy.orchestrator.memory.get_recent_recipes", return_value=[])
     @patch("remy.orchestrator.memory.save_recipe")
     @patch("remy.orchestrator.chef.generate_recipe", side_effect=RuntimeError("chef down"))
     def test_chef_failure(
-        self, _mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked
+        self, _mock_chef, mock_save, _mock_recent, _mock_top, _mock_disliked, _mock_setting
     ):
         result = orchestrator.run_chef_only(["eggs"])
         assert "AI models appear to be unavailable" in result

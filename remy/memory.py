@@ -34,6 +34,36 @@ def init_db() -> None:
                 added_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+
+
+# ── Settings (key/value) ──────────────────────────────────────────────────────
+
+def set_setting(key: str, value: str) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+
+
+def get_setting(key: str) -> str | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+    return row["value"] if row else None
+
+
+def delete_setting(key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM settings WHERE key = ?", (key,))
 
 
 # ── Pantry staples ────────────────────────────────────────────────────────────
